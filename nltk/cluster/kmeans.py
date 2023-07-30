@@ -111,32 +111,33 @@ class KMeansClusterer(VectorSpaceClusterer):
             self._means = min_means
 
     def _cluster_vectorspace(self, vectors, trace=False):
-        if self._num_means < len(vectors):
-            # perform k-means clustering
-            converged = False
-            while not converged:
+        if self._num_means >= len(vectors):
+            return
+        # perform k-means clustering
+        converged = False
+        while not converged:
                 # assign the tokens to clusters based on minimum distance to
                 # the cluster means
-                clusters = [[] for m in range(self._num_means)]
-                for vector in vectors:
-                    index = self.classify_vectorspace(vector)
-                    clusters[index].append(vector)
+            clusters = [[] for _ in range(self._num_means)]
+            for vector in vectors:
+                index = self.classify_vectorspace(vector)
+                clusters[index].append(vector)
 
-                if trace:
-                    print("iteration")
-                # for i in range(self._num_means):
-                # print '  mean', i, 'allocated', len(clusters[i]), 'vectors'
+            if trace:
+                print("iteration")
+            # for i in range(self._num_means):
+            # print '  mean', i, 'allocated', len(clusters[i]), 'vectors'
 
-                # recalculate cluster means by computing the centroid of each cluster
-                new_means = list(map(self._centroid, clusters, self._means))
+            # recalculate cluster means by computing the centroid of each cluster
+            new_means = list(map(self._centroid, clusters, self._means))
 
-                # measure the degree of change from the previous step for convergence
-                difference = self._sum_distances(self._means, new_means)
-                if difference < self._max_difference:
-                    converged = True
+            # measure the degree of change from the previous step for convergence
+            difference = self._sum_distances(self._means, new_means)
+            if difference < self._max_difference:
+                converged = True
 
-                # remember the new means
-                self._means = new_means
+            # remember the new means
+            self._means = new_means
 
     def classify_vectorspace(self, vector):
         # finds the closest cluster centroid
@@ -150,10 +151,7 @@ class KMeansClusterer(VectorSpaceClusterer):
         return best_index
 
     def num_clusters(self):
-        if self._means:
-            return len(self._means)
-        else:
-            return self._num_means
+        return len(self._means) if self._means else self._num_means
 
     def means(self):
         """
@@ -222,7 +220,7 @@ def demo():
 
     # classify a new vector
     vector = numpy.array([3, 3])
-    print("classify(%s):" % vector, end=" ")
+    print(f"classify({vector}):", end=" ")
     print(clusterer.classify(vector))
     print()
 

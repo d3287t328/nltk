@@ -324,9 +324,9 @@ class Lemma(_WordNetObject):
         return "%s('%s.%s')" % tup
 
     def _related(self, relation_symbol):
-        get_synset = self._wordnet_corpus_reader.synset_from_pos_and_offset
         if (self._name, relation_symbol) not in self._synset._lemma_pointers:
             return []
+        get_synset = self._wordnet_corpus_reader.synset_from_pos_and_offset
         return [
             get_synset(pos, offset)._lemmas[lemma_index]
             for pos, offset, lemma_index in self._synset._lemma_pointers[
@@ -476,23 +476,16 @@ class Synset(_WordNetObject):
         return self._lexname
 
     def _needs_root(self):
-        if self._pos == NOUN and self._wordnet_corpus_reader.get_version() != "1.6":
-            return False
-        else:
-            return True
+        return self._pos != NOUN or self._wordnet_corpus_reader.get_version() == "1.6"
 
     def lemma_names(self, lang="eng"):
         """Return all the lemma_names associated with the synset"""
         if lang == "eng":
             return self._lemma_names
-        else:
-            reader = self._wordnet_corpus_reader
-            reader._load_lang_data(lang)
-            i = reader.ss2of(self)
-            if i in reader._lang_data[lang][0]:
-                return reader._lang_data[lang][0][i]
-            else:
-                return []
+        reader = self._wordnet_corpus_reader
+        reader._load_lang_data(lang)
+        i = reader.ss2of(self)
+        return reader._lang_data[lang][0][i] if i in reader._lang_data[lang][0] else []
 
     def lemmas(self, lang="eng"):
         """Return all the lemma objects associated with the synset"""
@@ -525,13 +518,12 @@ class Synset(_WordNetObject):
             next_synset = todo.pop()
             if next_synset not in seen:
                 seen.add(next_synset)
-                next_hypernyms = (
+                if next_hypernyms := (
                     next_synset.hypernyms() + next_synset.instance_hypernyms()
-                )
-                if not next_hypernyms:
-                    result.append(next_synset)
-                else:
+                ):
                     todo.extend(next_hypernyms)
+                else:
+                    result.append(next_synset)
         return result
 
     # Simpler implementation which makes incorrect assumption that
@@ -549,11 +541,10 @@ class Synset(_WordNetObject):
         """
 
         if "_max_depth" not in self.__dict__:
-            hypernyms = self.hypernyms() + self.instance_hypernyms()
-            if not hypernyms:
-                self._max_depth = 0
-            else:
+            if hypernyms := self.hypernyms() + self.instance_hypernyms():
                 self._max_depth = 1 + max(h.max_depth() for h in hypernyms)
+            else:
+                self._max_depth = 0
         return self._max_depth
 
     def min_depth(self):
@@ -563,11 +554,10 @@ class Synset(_WordNetObject):
         """
 
         if "_min_depth" not in self.__dict__:
-            hypernyms = self.hypernyms() + self.instance_hypernyms()
-            if not hypernyms:
-                self._min_depth = 0
-            else:
+            if hypernyms := self.hypernyms() + self.instance_hypernyms():
                 self._min_depth = 1 + min(h.min_depth() for h in hypernyms)
+            else:
+                self._min_depth = 0
         return self._min_depth
 
     def closure(self, rel, depth=-1):
@@ -666,12 +656,8 @@ class Synset(_WordNetObject):
         :return: A list of lists, where each list gives the node sequence
            connecting the initial ``Synset`` node and a root node.
         """
-        paths = []
-
         hypernyms = self.hypernyms() + self.instance_hypernyms()
-        if len(hypernyms) == 0:
-            paths = [[self]]
-
+        paths = [[self]] if len(hypernyms) == 0 else []
         for hypernym in hypernyms:
             for ancestor_list in hypernym.hypernym_paths():
                 ancestor_list.append(self)
@@ -870,9 +856,7 @@ class Synset(_WordNetObject):
             other,
             simulate_root=simulate_root and (self._needs_root() or other._needs_root()),
         )
-        if distance is None or distance < 0:
-            return None
-        return 1.0 / (distance + 1)
+        return None if distance is None or distance < 0 else 1.0 / (distance + 1)
 
     def lch_similarity(self, other, verbose=False, simulate_root=True):
         """
@@ -1048,10 +1032,7 @@ class Synset(_WordNetObject):
 
         ic_difference = ic1 + ic2 - 2 * lcs_ic
 
-        if ic_difference == 0:
-            return _INF
-
-        return 1 / ic_difference
+        return _INF if ic_difference == 0 else 1 / ic_difference
 
     def lin_similarity(self, other, ic, verbose=False):
         """
@@ -1224,7 +1205,7 @@ class WordNetCorpusReader(CorpusReader):
         if version:
             from nltk.corpus import CorpusReader, LazyCorpusLoader
 
-            ixreader = LazyCorpusLoader(version, CorpusReader, r".*/" + fn)
+            ixreader = LazyCorpusLoader(version, CorpusReader, f".*/{fn}")
         else:
             ixreader = self
         with ixreader.open(fn) as fp:
@@ -1239,9 +1220,7 @@ class WordNetCorpusReader(CorpusReader):
     def map_to_many(self, version="wordnet"):
         sensekey_map1 = self.index_sense(version)
         sensekey_map2 = self.index_sense()
-        synset_to_many = {}
-        for synsetid in set(sensekey_map1.values()):
-            synset_to_many[synsetid] = []
+        synset_to_many = {synsetid: [] for synsetid in set(sensekey_map1.values())}
         for sensekey in set(sensekey_map1.keys()).intersection(
             set(sensekey_map2.keys())
         ):
@@ -1256,15 +1235,15 @@ class WordNetCorpusReader(CorpusReader):
         synset_to_many = self.map_to_many(version)
         synset_to_one = {}
         for source in synset_to_many:
-            candidates_bag = synset_to_many[source]
-            if candidates_bag:
+            if candidates_bag := synset_to_many[source]:
                 candidates_set = set(candidates_bag)
                 if len(candidates_set) == 1:
                     target = candidates_bag[0]
                 else:
-                    counts = []
-                    for candidate in candidates_set:
-                        counts.append((candidates_bag.count(candidate), candidate))
+                    counts = [
+                        (candidates_bag.count(candidate), candidate)
+                        for candidate in candidates_set
+                    ]
                     self.splits[version][source] = counts
                     target = max(counts)[1]
                 synset_to_one[source] = target
@@ -1278,10 +1257,7 @@ class WordNetCorpusReader(CorpusReader):
 
     def map_wn(self, version="wordnet"):
         """Mapping from Wordnet 'version' to currently loaded Wordnet version"""
-        if self.get_version() == version:
-            return None
-        else:
-            return self.map_to_one(version)
+        return None if self.get_version() == version else self.map_to_one(version)
 
     def split_synsets(self, version="wordnet"):
         if version not in self.splits:
@@ -1328,11 +1304,7 @@ class WordNetCorpusReader(CorpusReader):
             reader = self._omw_reader
 
         prov = self.provenances[lang]
-        if prov in ["cldr", "wikt"]:
-            prov2 = prov
-        else:
-            prov2 = "data"
-
+        prov2 = prov if prov in ["cldr", "wikt"] else "data"
         with reader.open(f"{prov}/wn-{prov2}-{lang.split('_')[0]}.tab") as fp:
             self.custom_lemmas(fp, lang)
         self.disable_custom_lemmas(lang)
@@ -1379,7 +1351,7 @@ class WordNetCorpusReader(CorpusReader):
         for suffix in self._FILEMAP.values():
 
             # parse each line of the file (ignoring comment lines)
-            with self.open("index.%s" % suffix) as fp:
+            with self.open(f"index.{suffix}") as fp:
                 for i, line in enumerate(fp):
                     if line.startswith(" "):
                         continue
@@ -1415,9 +1387,8 @@ class WordNetCorpusReader(CorpusReader):
                         # get synset offsets
                         synset_offsets = [int(_next_token()) for _ in range(n_synsets)]
 
-                    # raise more informative error with file name and line number
                     except (AssertionError, ValueError) as e:
-                        tup = ("index.%s" % suffix), (i + 1), e
+                        tup = f"index.{suffix}", i + 1, e
                         raise WordNetError("file %s, line %i: %s" % tup) from e
 
                     # map lemmas and parts of speech to synsets
@@ -1429,7 +1400,7 @@ class WordNetCorpusReader(CorpusReader):
         # load the exception file data into memory
         for pos, suffix in self._FILEMAP.items():
             self._exception_map[pos] = {}
-            with self.open("%s.exc" % suffix) as fp:
+            with self.open(f"{suffix}.exc") as fp:
                 for line in fp:
                     terms = line.split()
                     self._exception_map[pos][terms[0]] = terms[1:]
@@ -1456,7 +1427,7 @@ class WordNetCorpusReader(CorpusReader):
         for line in fh:
             match = re.search(r"Word[nN]et (\d+|\d+\.\d+) Copyright", line)
             if match is not None:
-                version = match.group(1)
+                version = match[1]
                 fh.seek(0)
                 return version
 
@@ -1545,7 +1516,7 @@ class WordNetCorpusReader(CorpusReader):
         if pos == ADJ_SAT:
             pos = ADJ
         if self._data_file_map.get(pos) is None:
-            fileid = "data.%s" % self._FILEMAP[pos]
+            fileid = f"data.{self._FILEMAP[pos]}"
             self._data_file_map[pos] = self.open(fileid)
         return self._data_file_map[pos]
 
@@ -1782,10 +1753,11 @@ class WordNetCorpusReader(CorpusReader):
             self._load_lang_data(lang)
             synset_list = []
             if lemma in self._lang_data[lang][1]:
-                for l in self._lang_data[lang][1][lemma]:
-                    if pos is not None and l[-1] != pos:
-                        continue
-                    synset_list.append(self.of2ss(l))
+                synset_list.extend(
+                    self.of2ss(l)
+                    for l in self._lang_data[lang][1][lemma]
+                    if pos is None or l[-1] == pos
+                )
             return synset_list
 
     def lemmas(self, lemma, pos=None, lang="eng"):
@@ -1802,17 +1774,18 @@ class WordNetCorpusReader(CorpusReader):
                 if lemma_obj.name().lower() == lemma
             ]
 
-        else:
-            self._load_lang_data(lang)
-            lemmas = []
-            syn = self.synsets(lemma, lang=lang)
-            for s in syn:
-                if pos is not None and s.pos() != pos:
-                    continue
-                for lemma_obj in s.lemmas(lang=lang):
-                    if lemma_obj.name().lower() == lemma:
-                        lemmas.append(lemma_obj)
-            return lemmas
+        self._load_lang_data(lang)
+        lemmas = []
+        syn = self.synsets(lemma, lang=lang)
+        for s in syn:
+            if pos is not None and s.pos() != pos:
+                continue
+            lemmas.extend(
+                lemma_obj
+                for lemma_obj in s.lemmas(lang=lang)
+                if lemma_obj.name().lower() == lemma
+            )
+        return lemmas
 
     def all_lemma_names(self, pos=None, lang="eng"):
         """Return all lemma names for all synsets for the given
@@ -1821,24 +1794,23 @@ class WordNetCorpusReader(CorpusReader):
         be used."""
 
         if lang == "eng":
-            if pos is None:
-                return iter(self._lemma_pos_offset_map)
-            else:
-                return (
+            return (
+                iter(self._lemma_pos_offset_map)
+                if pos is None
+                else (
                     lemma
                     for lemma in self._lemma_pos_offset_map
                     if pos in self._lemma_pos_offset_map[lemma]
                 )
-        else:
-            self._load_lang_data(lang)
-            lemma = []
-            for i in self._lang_data[lang][0]:
-                if pos is not None and i[-1] != pos:
-                    continue
-                lemma.extend(self._lang_data[lang][0][i])
+            )
+        self._load_lang_data(lang)
+        lemma = []
+        for i in self._lang_data[lang][0]:
+            if pos is not None and i[-1] != pos:
+                continue
+            lemma.extend(self._lang_data[lang][0][i])
 
-            lemma = iter(set(lemma))
-            return lemma
+        return iter(set(lemma))
 
     def all_omw_synsets(self, pos=None, lang=None):
         if lang not in self.langs():
@@ -1846,8 +1818,7 @@ class WordNetCorpusReader(CorpusReader):
         self._load_lang_data(lang)
         for of in self._lang_data[lang][0]:
             if not pos or of[-1] == pos:
-                ss = self.of2ss(of)
-                if ss:
+                if ss := self.of2ss(of):
                     yield ss
 
     #            else:
@@ -1865,11 +1836,7 @@ class WordNetCorpusReader(CorpusReader):
             return self.all_omw_synsets(pos=pos, lang=lang)
 
     def all_eng_synsets(self, pos=None):
-        if pos is None:
-            pos_tags = self._FILEMAP.keys()
-        else:
-            pos_tags = [pos]
-
+        pos_tags = self._FILEMAP.keys() if pos is None else [pos]
         cache = self._synset_offset_cache
         from_pos_and_line = self._synset_from_pos_and_line
 
@@ -1879,18 +1846,14 @@ class WordNetCorpusReader(CorpusReader):
             # the file pointers from self._data_file_map here, because
             # we're defining an iterator, and those file pointers might
             # be moved while we're not looking.
-            if pos_tag == ADJ_SAT:
-                pos_file = ADJ
-            else:
-                pos_file = pos_tag
-            fileid = "data.%s" % self._FILEMAP[pos_file]
+            pos_file = ADJ if pos_tag == ADJ_SAT else pos_tag
+            fileid = f"data.{self._FILEMAP[pos_file]}"
             data_file = self.open(fileid)
 
             try:
                 # generate synsets for each line in the POS file
                 offset = data_file.tell()
-                line = data_file.readline()
-                while line:
+                while line := data_file.readline():
                     if not line[0].isspace():
                         if offset in cache[pos_tag]:
                             # See if the synset is cached
@@ -1910,9 +1873,6 @@ class WordNetCorpusReader(CorpusReader):
                         elif pos_tag != ADJ_SAT:
                             yield synset
                     offset = data_file.tell()
-                    line = data_file.readline()
-
-            # close the extra file handle we opened
             except:
                 data_file.close()
                 raise
@@ -1974,9 +1934,7 @@ class WordNetCorpusReader(CorpusReader):
         # open the count file if we haven't already
         if self._key_count_file is None:
             self._key_count_file = self.open("cntlist.rev")
-        # find the key in the counts file and return the count
-        line = _binary_search_file(self._key_count_file, lemma._key)
-        if line:
+        if line := _binary_search_file(self._key_count_file, lemma._key):
             return int(line.rsplit(" ", 1)[-1])
         else:
             return 0
@@ -2045,10 +2003,7 @@ class WordNetCorpusReader(CorpusReader):
 
         # get the first one we find
         first = list(islice(analyses, 1))
-        if len(first) == 1:
-            return first[0]
-        else:
-            return None
+        return first[0] if len(first) == 1 else None
 
     MORPHOLOGICAL_SUBSTITUTIONS = {
         NOUN: [
@@ -2155,10 +2110,7 @@ class WordNetCorpusReader(CorpusReader):
         for ww in corpus.words():
             counts[ww] += 1
 
-        ic = {}
-        for pp in POS_LIST:
-            ic[pp] = defaultdict(float)
-
+        ic = {pp: defaultdict(float) for pp in POS_LIST}
         # Initialize the counts with the smoothing value
         if smoothing > 0.0:
             for pp in POS_LIST:
@@ -2243,8 +2195,8 @@ class WordNetCorpusReader(CorpusReader):
                         # Label OMW adjective satellites back to their Wordnet pos ("s")
                         offset_pos = self.ss2of(wnss)
                 pair = label.split(":")
-                attr = pair[-1]
                 if len(pair) == 1 or pair[0] == lg:
+                    attr = pair[-1]
                     if attr == "lemma":
                         val = val.strip().replace(" ", "_")
                         self._lang_data[lang][1][val.lower()].append(offset_pos)
@@ -2315,9 +2267,9 @@ class WordNetCorpusReader(CorpusReader):
         synsets = set()
         edges = set()
         if not shapes:
-            shapes = dict()
+            shapes = {}
         if not attr:
-            attr = dict()
+            attr = {}
 
         def add_lemma(lem):
             ss = lem.synset()
@@ -2368,8 +2320,7 @@ class WordNetICCorpusReader(CorpusReader):
         :param icfile: The name of the wordnet_ic file (e.g. "ic-brown.dat")
         :return: An information content dictionary
         """
-        ic = {}
-        ic[NOUN] = defaultdict(float)
+        ic = {NOUN: defaultdict(float)}
         ic[VERB] = defaultdict(float)
         with self.open(icfile) as fp:
             for num, line in enumerate(fp):
@@ -2483,10 +2434,7 @@ def information_content(synset, ic):
         raise WordNetError(msg % pos) from e
 
     counts = icpos[synset._offset]
-    if counts == 0:
-        return _INF
-    else:
-        return -math.log(counts / icpos[0])
+    return _INF if counts == 0 else -math.log(counts / icpos[0])
 
 
 # get the part of speech (NOUN or VERB) from the information content record

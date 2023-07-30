@@ -74,15 +74,14 @@ class BCP47CorpusReader(CorpusReader):
             "extlang": re.compile(f"{low*3}"),
             "script": re.compile(f"{up}{low*3}"),
             "region": re.compile(f"({up*2})|({dig*3})"),
-            "variant": re.compile(f"{alnum*4}{(alnum+'?')*4}"),
+            "variant": re.compile(f"{alnum * 4}{f'{alnum}?' * 4}"),
             "singleton": re.compile(f"{low}"),
         }
 
     def data_dict(self, records):
         """Convert the BCP-47 language subtag registry to a dictionary"""
         self.version = records[0].replace("File-Date:", "").strip()
-        dic = {}
-        dic["deprecated"] = {}
+        dic = {"deprecated": {}}
         for label in [
             "language",
             "extlang",
@@ -108,7 +107,7 @@ class BCP47CorpusReader(CorpusReader):
                     else:  # multiple value
                         subfields[key].append(val)
                 else:  # multiline field
-                    subfields[key][-1] += " " + field[0].strip()
+                    subfields[key][-1] += f" {field[0].strip()}"
                 if (
                     "Deprecated" not in record
                     and typ == "language"
@@ -155,7 +154,7 @@ class BCP47CorpusReader(CorpusReader):
                         found = True
                         valstr = self.val2str(self.db[label][subtag]["Description"])
                         if label == "variant" and label in lang:
-                            lang[label] += ": " + valstr
+                            lang[label] += f": {valstr}"
                         else:
                             lang[label] = valstr
                         break
@@ -175,12 +174,9 @@ class BCP47CorpusReader(CorpusReader):
             if not found:
                 if subtag == "u" and subtags[0] == "sd":  # CLDR regional subdivisions
                     sd = subtags[1]
-                    if sd in self.subdiv:
-                        ext = self.subdiv[sd]
-                    else:
-                        ext = f"<Unknown subdivision: {ext}>"
+                    ext = self.subdiv[sd] if sd in self.subdiv else f"<Unknown subdivision: {ext}>"
                 else:  # other extension subtags are not supported yet
-                    ext = f"{subtag}{''.join(['-'+ext for ext in subtags])}".lower()
+                    ext = f"{subtag}{''.join([f'-{ext}' for ext in subtags])}".lower()
                     if not self.format["singleton"].fullmatch(subtag):
                         ext = f"<Invalid extension: {ext}>"
                         warn(ext)

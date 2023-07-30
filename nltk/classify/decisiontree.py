@@ -63,10 +63,11 @@ class DecisionTreeClassifier(ClassifierI):
             return self._label
 
     def error(self, labeled_featuresets):
-        errors = 0
-        for featureset, label in labeled_featuresets:
-            if self.classify(featureset) != label:
-                errors += 1
+        errors = sum(
+            1
+            for featureset, label in labeled_featuresets
+            if self.classify(featureset) != label
+        )
         return errors / len(labeled_featuresets)
 
     def pretty_format(self, width=70, prefix="", depth=4):
@@ -79,24 +80,22 @@ class DecisionTreeClassifier(ClassifierI):
         # [xx] display default!!
         if self._fname is None:
             n = width - len(prefix) - 15
-            return "{}{} {}\n".format(prefix, "." * n, self._label)
+            return f'{prefix}{"." * n} {self._label}\n'
         s = ""
-        for i, (fval, result) in enumerate(
-            sorted(
+        for fval, result in sorted(
                 self._decisions.items(),
                 key=lambda item: (item[0] in [None, False, True], str(item[0]).lower()),
-            )
-        ):
+            ):
             hdr = f"{prefix}{self._fname}={fval}? "
             n = width - 15 - len(hdr)
-            s += "{}{} {}\n".format(hdr, "." * (n), result._label)
+            s += f'{hdr}{"." * n} {result._label}\n'
             if result._fname is not None and depth > 1:
-                s += result.pretty_format(width, prefix + "  ", depth - 1)
+                s += result.pretty_format(width, f"{prefix}  ", depth - 1)
         if self._default is not None:
             n = width - len(prefix) - 21
-            s += "{}else: {} {}\n".format(prefix, "." * n, self._default._label)
+            s += f'{prefix}else: {"." * n} {self._default._label}\n'
             if self._default._fname is not None and depth > 1:
-                s += self._default.pretty_format(width, prefix + "  ", depth - 1)
+                s += self._default.pretty_format(width, f"{prefix}  ", depth - 1)
         return s
 
     def pseudocode(self, prefix="", depth=4):
@@ -114,7 +113,7 @@ class DecisionTreeClassifier(ClassifierI):
         ):
             s += f"{prefix}if {self._fname} == {fval!r}: "
             if result._fname is not None and depth > 1:
-                s += "\n" + result.pseudocode(prefix + "  ", depth - 1)
+                s += "\n" + result.pseudocode(f"{prefix}  ", depth - 1)
             else:
                 s += f"return {result._label!r}\n"
         if self._default is not None:
@@ -125,7 +124,7 @@ class DecisionTreeClassifier(ClassifierI):
             else:
                 s += f"{prefix}else: "
             if self._default._fname is not None and depth > 1:
-                s += "\n" + self._default.pseudocode(prefix + "  ", depth - 1)
+                s += "\n" + self._default.pseudocode(f"{prefix}  ", depth - 1)
             else:
                 s += f"return {self._default._label!r}\n"
         return s
@@ -313,9 +312,7 @@ class DecisionTreeClassifier(ClassifierI):
                     best_stump = stump
         if verbose:
             if best_stump._decisions:
-                descr = "{}={}".format(
-                    best_stump._fname, list(best_stump._decisions.keys())[0]
-                )
+                descr = f"{best_stump._fname}={list(best_stump._decisions.keys())[0]}"
             else:
                 descr = "(default)"
             print(

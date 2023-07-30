@@ -100,9 +100,9 @@ class KNBCorpusReader(SyntaxCorpusReader):
                 assert m is not None
 
                 node = dg.nodes[i]
-                node.update({"address": i, "rel": m.group(2), "word": []})
+                node.update({"address": i, "rel": m[2], "word": []})
 
-                dep_parent = int(m.group(1))
+                dep_parent = int(m[1])
 
                 if dep_parent == -1:
                     dg.root = node
@@ -161,12 +161,12 @@ def demo():
         "{}({})".format(m[0], m[1].split(" ")[2]) for m in morphs if m[0] != "EOS"
     ).encode("utf-8")
 
-    print("\n\n".join("%s" % tree for tree in knbc.parsed_sents()[:2]))
+    print("\n\n".join(f"{tree}" for tree in knbc.parsed_sents()[:2]))
 
     print(
         "\n".join(
             " ".join("{}/{}".format(w[0], w[1].split(" ")[2]) for w in sent)
-            for sent in knbc.tagged_sents()[0:2]
+            for sent in knbc.tagged_sents()[:2]
         )
     )
 

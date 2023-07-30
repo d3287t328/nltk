@@ -242,12 +242,11 @@ def edge_closure(tree, children=iter, maxdepth=-1, verbose=False):
                 for child in children(node):
                     if child not in traversed:
                         queue.append((child, depth + 1))
-                    else:
-                        if verbose:
-                            warnings.warn(
-                                f"Discarded redundant search for {child} at depth {depth + 1}",
-                                stacklevel=2,
-                            )
+                    elif verbose:
+                        warnings.warn(
+                            f"Discarded redundant search for {child} at depth {depth + 1}",
+                            stacklevel=2,
+                        )
                     edge = (node, child)
                     if edge not in edges:
                         yield edge
@@ -279,9 +278,9 @@ def edges2dot(edges, shapes=None, attr=None):
     <BLANKLINE>
     """
     if not shapes:
-        shapes = dict()
+        shapes = {}
     if not attr:
-        attr = dict()
+        attr = {}
 
     dot_string = "digraph G {\n"
 
@@ -362,9 +361,7 @@ def acyclic_breadth_first(tree, children=iter, maxdepth=-1):
                         queue.append((child, depth + 1))
                     else:
                         warnings.warn(
-                            "Discarded redundant search for {} at depth {}".format(
-                                child, depth + 1
-                            ),
+                            f"Discarded redundant search for {child} at depth {depth + 1}",
                             stacklevel=2,
                         )
             except TypeError:
@@ -419,9 +416,7 @@ def acyclic_depth_first(tree, children=iter, depth=-1, cut_mark=None, traversed=
                     ]
                 else:
                     warnings.warn(
-                        "Discarded redundant search for {} at depth {}".format(
-                            child, depth - 1
-                        ),
+                        f"Discarded redundant search for {child} at depth {depth - 1}",
                         stacklevel=3,
                     )
                     if cut_mark:
@@ -492,9 +487,7 @@ def acyclic_branches_depth_first(
                     ]
                 else:
                     warnings.warn(
-                        "Discarded redundant search for {} at depth {}".format(
-                            child, depth - 1
-                        ),
+                        f"Discarded redundant search for {child} at depth {depth - 1}",
                         stacklevel=3,
                     )
                     if cut_mark:
@@ -600,7 +593,6 @@ def guess_encoding(data):
     If successful it returns ``(decoded_unicode, successful_encoding)``.
     If unsuccessful it raises a ``UnicodeError``.
     """
-    successful_encoding = None
     # we make 'utf-8' the first encoding
     encodings = ["utf-8"]
     #
@@ -620,6 +612,7 @@ def guess_encoding(data):
     #
     # we try 'latin-1' last
     encodings.append("latin-1")
+    successful_encoding = None
     for enc in encodings:
         # some of the locale calls
         # may have returned None
@@ -635,9 +628,7 @@ def guess_encoding(data):
             break
     if not successful_encoding:
         raise UnicodeError(
-            "Unable to decode input data. "
-            "Tried the following encodings: %s."
-            % ", ".join([repr(enc) for enc in encodings if enc])
+            f'Unable to decode input data. Tried the following encodings: {", ".join([repr(enc) for enc in encodings if enc])}.'
         )
     else:
         return (decoded, successful_encoding)
@@ -690,10 +681,7 @@ def transitive_closure(graph, reflexive=False):
     :type reflexive: bool
     :rtype: dict(set)
     """
-    if reflexive:
-        base_set = lambda k: {k}
-    else:
-        base_set = lambda k: set()
+    base_set = (lambda k: {k}) if reflexive else (lambda k: set())
     # The graph U_i in the article:
     agenda_graph = {k: graph[k].copy() for k in graph}
     # The graph M_i in the article:
@@ -1021,7 +1009,7 @@ def binary_search_file(file, key, cache=None, cacheDepth=-1):
     :param key: the identifier we are searching for.
     """
 
-    key = key + " "
+    key = f"{key} "
     keylen = len(key)
     start = 0
     currentDepth = 0
@@ -1060,14 +1048,11 @@ def binary_search_file(file, key, cache=None, cacheDepth=-1):
             if currentDepth < cacheDepth:
                 cache[middle] = (offset, line)
 
-        if offset > end:
+        if offset > end or line[:keylen] != key and line > key:
             assert end != middle - 1, "infinite loop"
             end = middle - 1
         elif line[:keylen] == key:
             return line
-        elif line > key:
-            assert end != middle - 1, "infinite loop"
-            end = middle - 1
         elif line < key:
             start = offset + len(line) - 1
 
@@ -1144,14 +1129,13 @@ def elementtree_indent(elem, level=0):
     i = "\n" + level * "  "
     if len(elem):
         if not elem.text or not elem.text.strip():
-            elem.text = i + "  "
+            elem.text = f"{i}  "
         for elem in elem:
             elementtree_indent(elem, level + 1)
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
+    elif level and (not elem.tail or not elem.tail.strip()):
+        elem.tail = i
 
 
 ######################################################################

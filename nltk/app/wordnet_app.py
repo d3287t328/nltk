@@ -124,7 +124,7 @@ class MyServerHandler(BaseHTTPRequestHandler):
                 try:
                     page = get_static_page_by_path(usp)
                 except FileNotFoundError:
-                    page = "Internal error: Path for static page '%s' is unknown" % usp
+                    page = f"Internal error: Path for static page '{usp}' is unknown"
                     # Set type to plain to prevent XSS by printing the path as HTML
                     type = "text/plain"
         elif sp.startswith("search"):
@@ -149,7 +149,7 @@ class MyServerHandler(BaseHTTPRequestHandler):
             page, word = page_from_word("wordnet")
         else:
             type = "text/plain"
-            page = "Could not parse request: '%s'" % sp
+            page = f"Could not parse request: '{sp}'"
 
         # Send result.
         self.send_head(type)
@@ -176,10 +176,7 @@ def get_unique_counter_from_url(sp):
     null.
     """
     pos = sp.rfind("%23")
-    if pos != -1:
-        return int(sp[(pos + 3) :])
-    else:
-        return None
+    return int(sp[(pos + 3) :]) if pos != -1 else None
 
 
 def wnb(port=8000, runBrowser=True, logfilename=None):
@@ -225,7 +222,7 @@ def wnb(port=8000, runBrowser=True, logfilename=None):
         logfile = None
 
     # Compute URL and start web browser
-    url = "http://localhost:" + str(port)
+    url = f"http://localhost:{str(port)}"
 
     server_ready = None
     browser_thread = None
@@ -303,10 +300,7 @@ def _pos_match(pos_tuple):
     for n, x in enumerate(pos_tuple):
         if x is not None:
             break
-    for pt in _pos_tuples():
-        if pt[n] == pos_tuple[n]:
-            return pt
-    return None
+    return next((pt for pt in _pos_tuples() if pt[n] == pos_tuple[n]), None)
 
 
 HYPONYM = 0
@@ -343,10 +337,7 @@ INDIRECT_HYPERNYMS = 26
 
 def lemma_property(word, synset, func):
     def flattern(l):
-        if l == []:
-            return []
-        else:
-            return l[0] + flattern(l[1:])
+        return [] if l == [] else l[0] + flattern(l[1:])
 
     return flattern([func(l) for l in synset.lemmas() if l.name == word])
 
@@ -434,7 +425,7 @@ def get_relations_data(word, synset):
         )
         # Derived from adjective - not supported by corpus
     else:
-        raise TypeError("Unhandles synset POS type: " + str(synset.pos()))
+        raise TypeError(f"Unhandles synset POS type: {str(synset.pos())}")
 
 
 html_header = """
@@ -479,11 +470,11 @@ synsets.</li>
 
 
 def _bold(txt):
-    return "<b>%s</b>" % txt
+    return f"<b>{txt}</b>"
 
 
 def _center(txt):
-    return "<center>%s</center>" % txt
+    return f"<center>{txt}</center>"
 
 
 def _hlev(n, txt):
@@ -491,11 +482,11 @@ def _hlev(n, txt):
 
 
 def _italic(txt):
-    return "<i>%s</i>" % txt
+    return f"<i>{txt}</i>"
 
 
 def _li(txt):
-    return "<li>%s</li>" % txt
+    return f"<li>{txt}</li>"
 
 
 def pg(word, body):
@@ -514,7 +505,7 @@ def pg(word, body):
 
 
 def _ul(txt):
-    return "<ul>" + txt + "</ul>"
+    return f"<ul>{txt}</ul>"
 
 
 def _abbc(txt):
@@ -554,11 +545,13 @@ def _collect_one_synset(word, synset, synset_relations):
 
     typ = "S"
     pos_tuple = _pos_match((synset.pos(), None, None))
-    assert pos_tuple is not None, "pos_tuple is null: synset.pos(): %s" % synset.pos()
+    assert (
+        pos_tuple is not None
+    ), f"pos_tuple is null: synset.pos(): {synset.pos()}"
     descr = pos_tuple[2]
     ref = copy.deepcopy(Reference(word, synset_relations))
     ref.toggle_synset(synset)
-    synset_label = typ + ";"
+    synset_label = f"{typ};"
     if synset.name() in synset_relations:
         synset_label = _bold(synset_label)
     s = f"<li>{make_lookup_link(ref, synset_label)} ({descr}) "
@@ -567,15 +560,13 @@ def _collect_one_synset(word, synset, synset_relations):
         w = w.replace("_", " ")
         if w.lower() == word:
             return _bold(w)
-        else:
-            ref = Reference(w)
-            return make_lookup_link(ref, w)
+        ref = Reference(w)
+        return make_lookup_link(ref, w)
 
     s += ", ".join(format_lemma(l.name()) for l in synset.lemmas())
 
     gl = " ({}) <i>{}</i> ".format(
-        synset.definition(),
-        "; ".join('"%s"' % e for e in synset.examples()),
+        synset.definition(), "; ".join(f'"{e}"' for e in synset.examples())
     )
     return s + gl + _synset_relations(word, synset, synset_relations) + "</li>\n"
 
@@ -605,7 +596,7 @@ def _synset_relations(word, synset, synset_relations):
     :rtype: str
     """
 
-    if not synset.name() in synset_relations:
+    if synset.name() not in synset_relations:
         return ""
     ref = Reference(word, synset_relations)
 
@@ -623,8 +614,7 @@ def _synset_relations(word, synset, synset_relations):
             )
         else:
             raise TypeError(
-                "r must be a synset, lemma or list, it was: type(r) = %s, r = %s"
-                % (type(r), r)
+                f"r must be a synset, lemma or list, it was: type(r) = {type(r)}, r = {r}"
             )
 
     def make_synset_html(db_name, disp_name, rels):
@@ -643,12 +633,11 @@ def _synset_relations(word, synset, synset_relations):
     html = (
         "<ul>"
         + "\n".join(
-            "<li>%s</li>" % make_synset_html(*rel_data)
+            f"<li>{make_synset_html(*rel_data)}</li>"
             for rel_data in get_relations_data(word, synset)
             if rel_data[2] != []
         )
-        + "</ul>"
-    )
+    ) + "</ul>"
 
     return html
 
@@ -775,7 +764,7 @@ def page_from_reference(href):
     pos_forms = defaultdict(list)
     words = word.split(",")
     words = [w for w in [w.strip().lower().replace(" ", "_") for w in words] if w != ""]
-    if len(words) == 0:
+    if not words:
         # No words were found.
         return "", "Please specify a word to search for."
 
@@ -798,7 +787,7 @@ def page_from_reference(href):
                 except KeyError:
                     pass
     if not body:
-        body = "The word or words '%s' were not found in the dictionary." % word
+        body = f"The word or words '{word}' were not found in the dictionary."
     return body, word
 
 
@@ -920,11 +909,7 @@ def get_static_index_page(with_shutdown):
 </frameset>
 </HTML>
 """
-    if with_shutdown:
-        upper_link = "upper.html"
-    else:
-        upper_link = "upper_2.html"
-
+    upper_link = "upper.html" if with_shutdown else "upper_2.html"
     return template % upper_link
 
 
@@ -984,13 +969,13 @@ def app():
     help_mode = False
     logfilename = None
     for (opt, value) in opts:
-        if (opt == "-l") or (opt == "--logfile"):
+        if opt in ["-l", "--logfile"]:
             logfilename = str(value)
-        elif (opt == "-p") or (opt == "--port"):
+        elif opt in ["-p", "--port"]:
             port = int(value)
-        elif (opt == "-s") or (opt == "--server-mode"):
+        elif opt in ["-s", "--server-mode"]:
             server_mode = True
-        elif (opt == "-h") or (opt == "--help"):
+        elif opt in ["-h", "--help"]:
             help_mode = True
 
     if help_mode:

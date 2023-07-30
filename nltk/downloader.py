@@ -286,7 +286,7 @@ class Package:
         return self.id < other.id
 
     def __repr__(self):
-        return "<Package %s>" % self.id
+        return f"<Package {self.id}>"
 
 
 class Collection:
@@ -327,7 +327,7 @@ class Collection:
         return self.id < other.id
 
     def __repr__(self):
-        return "<Collection %s>" % self.id
+        return f"<Collection {self.id}>"
 
 
 ######################################################################
@@ -415,10 +415,7 @@ class ErrorMessage(DownloaderMessage):
 
     def __init__(self, package, message):
         self.package = package
-        if isinstance(message, Exception):
-            self.message = str(message)
-        else:
-            self.message = message
+        self.message = str(message) if isinstance(message, Exception) else message
 
 
 class ProgressMessage(DownloaderMessage):
@@ -530,10 +527,10 @@ class Downloader:
         lines = 0  # for more_prompt
         if download_dir is None:
             download_dir = self._download_dir
-            print("Using default data directory (%s)" % download_dir)
+            print(f"Using default data directory ({download_dir})")
         if header:
             print("=" * (26 + len(self._url)))
-            print(" Data server index for <%s>" % self._url)
+            print(f" Data server index for <{self._url}>")
             print("=" * (26 + len(self._url)))
             lines += 3  # for more_prompt
         stale = partial = False
@@ -544,7 +541,7 @@ class Downloader:
         if show_collections:
             categories.append("collections")
         for category in categories:
-            print("%s:" % category.capitalize())
+            print(f"{category.capitalize()}:")
             lines += 1  # for more_prompt
             for info in sorted(getattr(self, category)(), key=str):
                 status = self.status(info, download_dir)
@@ -563,7 +560,7 @@ class Downloader:
                 name = textwrap.fill(
                     "-" * 27 + (info.name or info.id), 75, subsequent_indent=27 * " "
                 )[27:]
-                print("  [{}] {} {}".format(prefix, info.id.ljust(20, "."), name))
+                print(f'  [{prefix}] {info.id.ljust(20, ".")} {name}')
                 lines += len(name.split("\n"))  # for more_prompt
                 if more_prompt and lines > 20:
                     user_input = input("Hit Enter to continue: ")
@@ -576,7 +573,7 @@ class Downloader:
             msg += "; [-] marks out-of-date or corrupt packages"
         if partial:
             msg += "; [P] marks partially installed collections"
-        print(textwrap.fill(msg + ")", subsequent_indent=" ", width=76))
+        print(textwrap.fill(f"{msg})", subsequent_indent=" ", width=76))
 
     def packages(self):
         self._update_index()
@@ -599,10 +596,7 @@ class Downloader:
     # /////////////////////////////////////////////////////////////////
 
     def _info_or_id(self, info_or_id):
-        if isinstance(info_or_id, str):
-            return self.info(info_or_id)
-        else:
-            return info_or_id
+        return self.info(info_or_id) if isinstance(info_or_id, str) else info_or_id
 
     # [xx] When during downloading is it 'safe' to abort?  Only unsafe
     # time is *during* an unzip -- we don't want to leave a
@@ -642,10 +636,7 @@ class Downloader:
             yield from self._download_package(info, download_dir, force)
 
     def _num_packages(self, item):
-        if isinstance(item, Package):
-            return 1
-        else:
-            return len(item.packages)
+        return 1 if isinstance(item, Package) else len(item.packages)
 
     def _download_list(self, items, download_dir, force):
         # Look up the requested items.
@@ -816,23 +807,15 @@ class Downloader:
                                 % msg.collection.id
                             )
                         else:
-                            show("Done downloading collection %s" % msg.collection.id)
+                            show(f"Done downloading collection {msg.collection.id}")
 
-                    # Package downloading messages:
                     elif isinstance(msg, StartPackageMessage):
-                        show(
-                            "Downloading package %s to %s..."
-                            % (msg.package.id, download_dir)
-                        )
+                        show(f"Downloading package {msg.package.id} to {download_dir}...")
                     elif isinstance(msg, UpToDateMessage):
-                        show("Package %s is already up-to-date!" % msg.package.id, "  ")
-                    # elif isinstance(msg, StaleMessage):
-                    #    show('Package %s is out-of-date or corrupt' %
-                    #         msg.package.id, '  ')
+                        show(f"Package {msg.package.id} is already up-to-date!", "  ")
                     elif isinstance(msg, StartUnzipMessage):
-                        show("Unzipping %s." % msg.package.filename, "  ")
+                        show(f"Unzipping {msg.package.filename}.", "  ")
 
-                    # Data directory message:
                     elif isinstance(msg, SelectDownloadDirMessage):
                         download_dir = msg.download_dir
         return True
@@ -873,15 +856,13 @@ class Downloader:
             else:
                 return self.INSTALLED
 
-        # Handle packages:
         else:
             filepath = os.path.join(download_dir, info.filename)
             if download_dir != self._download_dir:
                 return self._pkg_status(info, filepath)
-            else:
-                if info.id not in self._status_cache:
-                    self._status_cache[info.id] = self._pkg_status(info, filepath)
-                return self._status_cache[info.id]
+            if info.id not in self._status_cache:
+                self._status_cache[info.id] = self._pkg_status(info, filepath)
+            return self._status_cache[info.id]
 
     def _pkg_status(self, info, filepath):
         if not os.path.exists(filepath):
@@ -971,11 +952,7 @@ class Downloader:
                 elif child_id in self._collections:
                     collection.children[i] = self._collections[child_id]
                 else:
-                    print(
-                        "removing collection member with no package: {}".format(
-                            child_id
-                        )
-                    )
+                    print(f"removing collection member with no package: {child_id}")
                     del collection.children[i]
 
         # Fill in collection.packages for each collection.
@@ -987,8 +964,6 @@ class Downloader:
                     queue.extend(child.children)
                 elif isinstance(child, Package):
                     packages[child.id] = child
-                else:
-                    pass
             collection.packages = packages.values()
 
         # Flush the status cache
@@ -1124,7 +1099,7 @@ class DownloaderShell:
     def _simple_interactive_menu(self, *options):
         print("-" * 75)
         spc = (68 - sum(len(o) for o in options)) // (len(options) - 1) * " "
-        print("    " + spc.join(options))
+        print(f"    {spc.join(options)}")
         print("-" * 75)
 
     def run(self):
@@ -1161,9 +1136,9 @@ class DownloaderShell:
                 else:
                     print("Command %r unrecognized" % user_input)
             except HTTPError as e:
-                print("Error reading from server: %s" % e)
+                print(f"Error reading from server: {e}")
             except URLError as e:
-                print("Error connecting to server: %s" % e.reason)
+                print(f"Error connecting to server: {e.reason}")
             # try checking if user_input is a package name, &
             # downloading it?
             print()
@@ -1199,13 +1174,13 @@ class DownloaderShell:
                     break
 
     def _simple_interactive_update(self):
+        stale = partial = False
         while True:
-            stale_packages = []
-            stale = partial = False
-            for info in sorted(getattr(self._ds, "packages")(), key=str):
-                if self._ds.status(info) == self._ds.STALE:
-                    stale_packages.append((info.id, info.name))
-
+            stale_packages = [
+                (info.id, info.name)
+                for info in sorted(getattr(self._ds, "packages")(), key=str)
+                if self._ds.status(info) == self._ds.STALE
+            ]
             print()
             if stale_packages:
                 print("Will update following packages (o=ok; x=cancel)")
@@ -1213,7 +1188,7 @@ class DownloaderShell:
                     name = textwrap.fill(
                         "-" * 27 + (pname), 75, subsequent_indent=27 * " "
                     )[27:]
-                    print("  [ ] {} {}".format(pid.ljust(20, "."), name))
+                    print(f'  [ ] {pid.ljust(20, ".")} {name}')
                 print()
 
                 user_input = input("  Identifier> ")
@@ -1242,12 +1217,12 @@ class DownloaderShell:
     def _show_config(self):
         print()
         print("Data Server:")
-        print("  - URL: <%s>" % self._ds.url)
+        print(f"  - URL: <{self._ds.url}>")
         print("  - %d Package Collections Available" % len(self._ds.collections()))
         print("  - %d Individual Packages Available" % len(self._ds.packages()))
         print()
         print("Local Machine:")
-        print("  - Data directory: %s" % self._ds.download_dir)
+        print(f"  - Data directory: {self._ds.download_dir}")
 
     def _simple_interactive_config(self):
         self._show_config()
@@ -1273,7 +1248,7 @@ class DownloaderShell:
                     print("  Cancelled!")
                 else:
                     if not new_url.startswith(("http://", "https://")):
-                        new_url = "http://" + new_url
+                        new_url = f"http://{new_url}"
                     try:
                         self._ds.url = new_url
                     except Exception as e:
@@ -1422,9 +1397,7 @@ class DownloaderGUI:
         self._table.bind("<Destroy>", self._destroy)
 
     def _log(self, msg):
-        self._log_messages.append(
-            "{} {}{}".format(time.ctime(), " | " * self._log_indent, msg)
-        )
+        self._log_messages.append(f'{time.ctime()} {" | " * self._log_indent}{msg}')
 
     # /////////////////////////////////////////////////////////////////
     # Internals
@@ -1588,14 +1561,14 @@ class DownloaderGUI:
         sortmenu = Menu(menubar, tearoff=0)
         for column in self._table.column_names[1:]:
             sortmenu.add_command(
-                label="Sort by %s" % column,
+                label=f"Sort by {column}",
                 command=(lambda c=column: self._table.sort_by(c, "ascending")),
             )
         sortmenu.add_separator()
         # sortmenu.add_command(label='Descending Sort:')
         for column in self._table.column_names[1:]:
             sortmenu.add_command(
-                label="Reverse sort by %s" % column,
+                label=f"Reverse sort by {column}",
                 command=(lambda c=column: self._table.sort_by(c, "descending")),
             )
         menubar.add_cascade(label="Sort", underline=0, menu=sortmenu)
@@ -1650,7 +1623,7 @@ class DownloaderGUI:
     def _table_reprfunc(self, row, col, val):
         if self._table.column_names[col].endswith("Size"):
             if isinstance(val, str):
-                return "  %s" % val
+                return f"  {val}"
             elif val < 1024**2:
                 return "  %.1f KB" % (val / 1024.0**1)
             elif val < 1024**3:
@@ -1658,10 +1631,7 @@ class DownloaderGUI:
             else:
                 return "  %.1f GB" % (val / 1024.0**3)
 
-        if col in (0, ""):
-            return str(val)
-        else:
-            return "  %s" % val
+        return str(val) if col in (0, "") else f"  {val}"
 
     def _set_url(self, url):
         if url == self._ds.url:
@@ -1824,18 +1794,16 @@ class DownloaderGUI:
             self._show_progress(None)
             return  # halt progress.
         elif isinstance(msg, StartCollectionMessage):
-            show("Downloading collection %s" % msg.collection.id)
+            show(f"Downloading collection {msg.collection.id}")
             self._log_indent += 1
         elif isinstance(msg, StartPackageMessage):
-            show("Downloading package %s" % msg.package.id)
+            show(f"Downloading package {msg.package.id}")
         elif isinstance(msg, UpToDateMessage):
-            show("Package %s is up-to-date!" % msg.package.id)
-        # elif isinstance(msg, StaleMessage):
-        #    show('Package %s is out-of-date or corrupt' % msg.package.id)
+            show(f"Package {msg.package.id} is up-to-date!")
         elif isinstance(msg, FinishDownloadMessage):
             show("Finished downloading %r." % msg.package.id)
         elif isinstance(msg, StartUnzipMessage):
-            show("Unzipping %s" % msg.package.filename)
+            show(f"Unzipping {msg.package.filename}")
         elif isinstance(msg, FinishCollectionMessage):
             self._log_indent -= 1
             show("Finished downloading collection %r." % msg.collection.id)
@@ -1880,10 +1848,7 @@ class DownloaderGUI:
     def _table_mark(self, *e):
         selection = self._table.selected_row()
         if selection >= 0:
-            if self._table[selection][0] != "":
-                self._table[selection, 0] = ""
-            else:
-                self._table[selection, 0] = "X"
+            self._table[selection, 0] = "" if self._table[selection][0] != "" else "X"
         self._table.select(delta=1)
 
     def _show_log(self):
@@ -2024,7 +1989,7 @@ class DownloaderGUI:
             c.itemconfig("gradient", state="hidden")
         else:
             width, height = int(c["width"]), int(c["height"])
-            x = percent * int(width) // 100 + 1
+            x = percent * width // 100 + 1
             c.coords("redbox", 0, 0, x, height + 1)
 
     def _progress_alive(self):
@@ -2131,7 +2096,7 @@ class DownloaderGUI:
         for msg in self._download_msg_queue:
 
             # Done downloading?
-            if msg == "finished" or msg == "aborted":
+            if msg in ["finished", "aborted"]:
                 # self._fill_table(sort=False)
                 self._update_table_status()
                 self._downloading = False
@@ -2147,7 +2112,6 @@ class DownloaderGUI:
                     self._afterid["_monitor_message_queue"] = afterid
                 return
 
-            # All other messages
             elif isinstance(msg, ProgressMessage):
                 self._show_progress(msg.progress)
             elif isinstance(msg, ErrorMessage):
@@ -2164,16 +2128,13 @@ class DownloaderGUI:
                 self._ds.clear_status_cache(msg.package.id)
                 show("Downloading package %r" % msg.package.id)
             elif isinstance(msg, UpToDateMessage):
-                show("Package %s is up-to-date!" % msg.package.id)
-            # elif isinstance(msg, StaleMessage):
-            #    show('Package %s is out-of-date or corrupt; updating it' %
-            #         msg.package.id)
+                show(f"Package {msg.package.id} is up-to-date!")
             elif isinstance(msg, FinishDownloadMessage):
                 show("Finished downloading %r." % msg.package.id)
             elif isinstance(msg, StartUnzipMessage):
-                show("Unzipping %s" % msg.package.filename)
+                show(f"Unzipping {msg.package.filename}")
             elif isinstance(msg, FinishUnzipMessage):
-                show("Finished installing %s" % msg.package.id)
+                show(f"Finished installing {msg.package.id}")
             elif isinstance(msg, FinishCollectionMessage):
                 self._log_indent -= 1
                 show("Finished downloading collection %r." % msg.collection.id)
@@ -2217,10 +2178,10 @@ def md5_hexdigest(file):
 def _md5_hexdigest(fp):
     md5_digest = md5()
     while True:
-        block = fp.read(1024 * 16)  # 16k blocks
-        if not block:
+        if block := fp.read(1024 * 16):
+            md5_digest.update(block)
+        else:
             break
-        md5_digest.update(block)
     return md5_digest.hexdigest()
 
 
@@ -2239,7 +2200,7 @@ def unzip(filename, root, verbose=True):
 
 def _unzip_iter(filename, root, verbose=True):
     if verbose:
-        sys.stdout.write("Unzipping %s" % os.path.split(filename)[1])
+        sys.stdout.write(f"Unzipping {os.path.split(filename)[1]}")
         sys.stdout.flush()
 
     try:
@@ -2301,9 +2262,9 @@ def build_index(root, base_url):
         unzipped_size = sum(zf_info.file_size for zf_info in zf.infolist())
 
         # Fill in several fields of the package xml with calculated values.
-        pkg_xml.set("unzipped_size", "%s" % unzipped_size)
-        pkg_xml.set("size", "%s" % zipstat.st_size)
-        pkg_xml.set("checksum", "%s" % md5_hexdigest(zf.filename))
+        pkg_xml.set("unzipped_size", f"{unzipped_size}")
+        pkg_xml.set("size", f"{zipstat.st_size}")
+        pkg_xml.set("checksum", f"{md5_hexdigest(zf.filename)}")
         pkg_xml.set("subdir", subdir)
         # pkg_xml.set('svn_revision', _svn_revision(zf.filename))
         if not pkg_xml.get("url"):
@@ -2319,7 +2280,7 @@ def build_index(root, base_url):
     uids = set()
     for item in packages + collections:
         if item.get("id") in uids:
-            raise ValueError("Duplicate UID: %s" % item.get("id"))
+            raise ValueError(f'Duplicate UID: {item.get("id")}')
         uids.add(item.get("id"))
 
     # Put it all together
@@ -2343,7 +2304,7 @@ def _indent_xml(xml, prefix=""):
     if len(xml) > 0:
         xml.text = (xml.text or "").strip() + "\n" + prefix + "  "
         for child in xml:
-            _indent_xml(child, prefix + "  ")
+            _indent_xml(child, f"{prefix}  ")
         for child in xml[:-1]:
             child.tail = (child.tail or "").strip() + "\n" + prefix + "  "
         xml[-1].tail = (xml[-1].tail or "").strip() + "\n" + prefix
@@ -2357,12 +2318,13 @@ def _check_package(pkg_xml, zipfilename, zf):
     # The filename must patch the id given in the XML file.
     uid = os.path.splitext(os.path.split(zipfilename)[1])[0]
     if pkg_xml.get("id") != uid:
-        raise ValueError(
-            "package identifier mismatch ({} vs {})".format(pkg_xml.get("id"), uid)
-        )
+        raise ValueError(f'package identifier mismatch ({pkg_xml.get("id")} vs {uid})')
 
     # Zip file must expand to a subdir whose name matches uid.
-    if sum((name != uid and not name.startswith(uid + "/")) for name in zf.namelist()):
+    if sum(
+        name != uid and not name.startswith(f"{uid}/")
+        for name in zf.namelist()
+    ):
         raise ValueError(
             "Zipfile %s.zip does not expand to a single "
             "subdirectory %s/" % (uid, uid)
@@ -2383,8 +2345,7 @@ def _svn_revision(filename):
     (stdout, stderr) = p.communicate()
     if p.returncode != 0 or stderr or not stdout:
         raise ValueError(
-            "Error determining svn_revision for %s: %s"
-            % (os.path.split(filename)[1], textwrap.fill(stderr))
+            f"Error determining svn_revision for {os.path.split(filename)[1]}: {textwrap.fill(stderr)}"
         )
     return stdout.split()[2]
 
@@ -2420,7 +2381,7 @@ def _find_packages(root):
         for filename in files:
             if filename.endswith(".xml"):
                 xmlfilename = os.path.join(dirname, filename)
-                zipfilename = xmlfilename[:-4] + ".zip"
+                zipfilename = f"{xmlfilename[:-4]}.zip"
                 try:
                     zf = zipfile.ZipFile(zipfilename)
                 except Exception as e:
@@ -2441,7 +2402,7 @@ def _find_packages(root):
                 # Check that the zipfile expands to a subdir whose
                 # name matches the uid.
                 if sum(
-                    (name != uid and not name.startswith(uid + "/"))
+                    name != uid and not name.startswith(f"{uid}/")
                     for name in zf.namelist()
                 ):
                     raise ValueError(
@@ -2454,11 +2415,10 @@ def _find_packages(root):
             elif filename.endswith(".zip"):
                 # Warn user in case a .xml does not exist for a .zip
                 resourcename = os.path.splitext(filename)[0]
-                xmlfilename = os.path.join(dirname, resourcename + ".xml")
+                xmlfilename = os.path.join(dirname, f"{resourcename}.xml")
                 if not os.path.exists(xmlfilename):
                     warnings.warn(
-                        f"{filename} exists, but {resourcename + '.xml'} cannot be found! "
-                        f"This could mean that {resourcename} can not be downloaded.",
+                        f"{filename} exists, but {resourcename}.xml cannot be found! This could mean that {resourcename} can not be downloaded.",
                         stacklevel=2,
                     )
 

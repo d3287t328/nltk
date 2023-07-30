@@ -39,12 +39,13 @@ class OrderedDict(dict):
             return self.__missing__(key)
 
     def __iter__(self):
-        return (key for key in self.keys())
+        return iter(self.keys())
 
     def __missing__(self, key):
-        if not self._default_factory and key not in self._keys:
+        if self._default_factory or key in self._keys:
+            return self._default_factory()
+        else:
             raise KeyError()
-        return self._default_factory()
 
     def __setitem__(self, key, item):
         dict.__setitem__(self, key, item)
@@ -71,12 +72,8 @@ class OrderedDict(dict):
                 assert len(data) == len(keys)
                 return keys
             else:
-                assert (
-                    isinstance(data, dict)
-                    or isinstance(data, OrderedDict)
-                    or isinstance(data, list)
-                )
-                if isinstance(data, dict) or isinstance(data, OrderedDict):
+                assert isinstance(data, (dict, OrderedDict, list))
+                if isinstance(data, (dict, OrderedDict)):
                     return data.keys()
                 elif isinstance(data, list):
                     return [key for (key, value) in data]
@@ -227,8 +224,8 @@ class AbstractLazySequence:
             pieces.append(repr(elt))
             length += len(pieces[-1]) + 2
             if length > self._MAX_REPR_SIZE and len(pieces) > 2:
-                return "[%s, ...]" % ", ".join(pieces[:-1])
-        return "[%s]" % ", ".join(pieces)
+                return f'[{", ".join(pieces[:-1])}, ...]'
+        return f'[{", ".join(pieces)}]'
 
     def __eq__(self, other):
         return type(self) == type(other) and list(self) == list(other)
@@ -245,7 +242,7 @@ class AbstractLazySequence:
         """
         :raise ValueError: Corpus view objects are unhashable.
         """
-        raise ValueError("%s objects are unhashable" % self.__class__.__name__)
+        raise ValueError(f"{self.__class__.__name__} objects are unhashable")
 
 
 class LazySubsequence(AbstractLazySequence):

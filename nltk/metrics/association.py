@@ -453,7 +453,7 @@ class ContingencyMeasures:
 
     def __init__(self, measures):
         """Constructs a ContingencyMeasures given a NgramAssocMeasures class"""
-        self.__class__.__name__ = "Contingency" + measures.__class__.__name__
+        self.__class__.__name__ = f"Contingency{measures.__class__.__name__}"
         for k in dir(measures):
             if k.startswith("__"):
                 continue

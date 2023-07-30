@@ -74,9 +74,8 @@ class LazyModule:
         if globals is None:
             globals = locals
         self.__lazymodule_globals = globals
-        mainname = globals.get("__name__", "")
-        if mainname:
-            self.__name__ = mainname + "." + name
+        if mainname := globals.get("__name__", ""):
+            self.__name__ = f"{mainname}.{name}"
             self.__lazymodule_name = name
         else:
             self.__name__ = self.__lazymodule_name = name
@@ -139,4 +138,4 @@ class LazyModule:
         setattr(module, name, value)
 
     def __repr__(self):
-        return "<LazyModule '%s'>" % self.__name__
+        return f"<LazyModule '{self.__name__}'>"

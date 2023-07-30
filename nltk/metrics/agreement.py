@@ -168,7 +168,7 @@ class AnnotationTask:
             ret = self.Nk(k)
         elif k is not None and i is not None and c is None:
             ret = self.Nik(i, k)
-        elif k is not None and c is not None and i is None:
+        elif k is not None and i is None:
             ret = self.Nck(c, k)
         else:
             raise ValueError(
@@ -204,8 +204,7 @@ class AnnotationTask:
             for cB in s:
                 total += function(cA, cB)
                 n += 1
-        ret = total / n
-        return ret
+        return total / n
 
     def avg_Ao(self):
         """Average observed agreement across all coders and items."""
@@ -237,8 +236,7 @@ class AnnotationTask:
     def S(self):
         """Bennett, Albert and Goldstein 1954"""
         Ae = 1.0 / len(self.K)
-        ret = (self.avg_Ao() - Ae) / (1.0 - Ae)
-        return ret
+        return (self.avg_Ao() - Ae) / (1.0 - Ae)
 
     def pi(self):
         """Scott 1955; here, multi-pi.
@@ -318,9 +316,7 @@ class AnnotationTask:
         do = total_do / sum(all_valid_labels_freq.values())
 
         de = self.Disagreement(all_valid_labels_freq)  # Expected disagreement.
-        k_alpha = 1.0 - do / de
-
-        return k_alpha
+        return 1.0 - do / de
 
     def weighted_kappa_pairwise(self, cA, cB, max_distance=1.0):
         """Cohen 1968"""
@@ -334,8 +330,7 @@ class AnnotationTask:
         De = total / (max_distance * pow(len(self.I), 2))
         log.debug("Expected disagreement between %s and %s: %f", cA, cB, De)
         Do = self.Do_Kw_pairwise(cA, cB)
-        ret = 1.0 - (Do / De)
-        return ret
+        return 1.0 - (Do / De)
 
     def weighted_kappa(self, max_distance=1.0):
         """Cohen 1968"""
@@ -457,9 +452,7 @@ if __name__ == "__main__":
     else:
         task = AnnotationTask(data, getattr(distance, options.distance))
 
-    if options.thorough:
-        pass
-    else:
+    if not options.thorough:
         print(getattr(task, options.agreement)())
 
     logging.shutdown()

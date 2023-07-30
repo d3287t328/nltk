@@ -166,14 +166,16 @@ class MaxentClassifier(ClassifierI):
         probabilities of each label for that featureset.
         """
         descr_width = 50
-        TEMPLATE = "  %-" + str(descr_width - 2) + "s%s%8.3f"
+        TEMPLATE = f"  %-{str(descr_width - 2)}s%s%8.3f"
 
         pdist = self.prob_classify(featureset)
         labels = sorted(pdist.samples(), key=pdist.prob, reverse=True)
         labels = labels[:columns]
         print(
-            "  Feature".ljust(descr_width)
-            + "".join("%8s" % (("%s" % l)[:7]) for l in labels)
+            (
+                "  Feature".ljust(descr_width)
+                + "".join("%8s" % f"{l}"[:7] for l in labels)
+            )
         )
         print("  " + "-" * (descr_width - 2 + 8 * len(labels)))
         sums = defaultdict(int)
@@ -189,9 +191,9 @@ class MaxentClassifier(ClassifierI):
                     score = self._weights[f_id] ** f_val
                 descr = self._encoding.describe(f_id)
                 descr = descr.split(" and label is ")[0]  # hack
-                descr += " (%s)" % f_val  # hack
+                descr += f" ({f_val})"
                 if len(descr) > 47:
-                    descr = descr[:44] + "..."
+                    descr = f"{descr[:44]}..."
                 print(TEMPLATE % (descr, i * 8 * " ", score))
                 sums[label] += score
         print("  " + "-" * (descr_width - 1 + 8 * len(labels)))
@@ -207,15 +209,13 @@ class MaxentClassifier(ClassifierI):
         """
         Generates the ranked list of informative features from most to least.
         """
-        if hasattr(self, "_most_informative_features"):
-            return self._most_informative_features[:n]
-        else:
+        if not hasattr(self, "_most_informative_features"):
             self._most_informative_features = sorted(
                 list(range(len(self._weights))),
                 key=lambda fid: abs(self._weights[fid]),
                 reverse=True,
             )
-            return self._most_informative_features[:n]
+        return self._most_informative_features[:n]
 
     def show_most_informative_features(self, n=10, show="all"):
         """
@@ -341,7 +341,7 @@ class MaxentClassifier(ClassifierI):
             kwargs["gaussian_prior_sigma"] = gaussian_prior_sigma
             return TadmMaxentClassifier.train(train_toks, **kwargs)
         else:
-            raise ValueError("Unknown algorithm %s" % algorithm)
+            raise ValueError(f"Unknown algorithm {algorithm}")
 
 
 #: Alias for MaxentClassifier.
@@ -413,7 +413,7 @@ class MaxentFeatureEncodingI:
         """
         raise NotImplementedError()
 
-    def train(cls, train_toks):
+    def train(self, train_toks):
         """
         Construct and return new feature encoding, based on a given
         training corpus ``train_toks``.
@@ -611,7 +611,7 @@ class BinaryMaxentFeatureEncoding(MaxentFeatureEncodingI):
         elif self._unseen and f_id in self._unseen.values():
             for (fname, f_id2) in self._unseen.items():
                 if f_id == f_id2:
-                    return "%s is unseen" % fname
+                    return f"{fname} is unseen"
         else:
             raise ValueError("Bad feature id")
 
@@ -657,7 +657,7 @@ class BinaryMaxentFeatureEncoding(MaxentFeatureEncodingI):
 
         for (tok, label) in train_toks:
             if labels and label not in labels:
-                raise ValueError("Unexpected label %s" % label)
+                raise ValueError(f"Unexpected label {label}")
             seen_labels.add(label)
 
             # Record each of the features.
@@ -732,7 +732,7 @@ class GISEncoding(BinaryMaxentFeatureEncoding):
 
     def describe(self, f_id):
         if f_id == BinaryMaxentFeatureEncoding.length(self):
-            return "Correction feature (%s)" % self._C
+            return f"Correction feature ({self._C})"
         else:
             return BinaryMaxentFeatureEncoding.describe(self, f_id)
 
@@ -909,21 +909,18 @@ class TypedMaxentFeatureEncoding(MaxentFeatureEncodingI):
                 # Known feature name & value:
                 if (fname, type(fval), label) in self._mapping:
                     encoding.append((self._mapping[fname, type(fval), label], fval))
-            else:
-                # Known feature name & value:
-                if (fname, fval, label) in self._mapping:
-                    encoding.append((self._mapping[fname, fval, label], 1))
+            elif (fname, fval, label) in self._mapping:
+                encoding.append((self._mapping[fname, fval, label], 1))
 
-                # Otherwise, we might want to fire an "unseen-value feature".
-                elif self._unseen:
-                    # Have we seen this fname/fval combination with any label?
-                    for label2 in self._labels:
-                        if (fname, fval, label2) in self._mapping:
-                            break  # we've seen this fname/fval combo
-                    # We haven't -- fire the unseen-value feature
-                    else:
-                        if fname in self._unseen:
-                            encoding.append((self._unseen[fname], 1))
+            elif self._unseen:
+                # Have we seen this fname/fval combination with any label?
+                for label2 in self._labels:
+                    if (fname, fval, label2) in self._mapping:
+                        break  # we've seen this fname/fval combo
+                # We haven't -- fire the unseen-value feature
+                else:
+                    if fname in self._unseen:
+                        encoding.append((self._unseen[fname], 1))
 
         # Add always-on features:
         if self._alwayson and label in self._alwayson:
@@ -952,7 +949,7 @@ class TypedMaxentFeatureEncoding(MaxentFeatureEncodingI):
         elif self._unseen and f_id in self._unseen.values():
             for (fname, f_id2) in self._unseen.items():
                 if f_id == f_id2:
-                    return "%s is unseen" % fname
+                    return f"{fname} is unseen"
         else:
             raise ValueError("Bad feature id")
 
@@ -1001,7 +998,7 @@ class TypedMaxentFeatureEncoding(MaxentFeatureEncodingI):
 
         for (tok, label) in train_toks:
             if labels and label not in labels:
-                raise ValueError("Unexpected label %s" % label)
+                raise ValueError(f"Unexpected label {label}")
             seen_labels.add(label)
 
             # Record each of the features.
@@ -1376,7 +1373,7 @@ def calculate_deltas(
     #                       exp(delta[i]nf)
     #   - sum2[i][nf] = sum p(fs)p(label|fs)f[i](label,fs)
     #                       nf exp(delta[i]nf)
-    for rangenum in range(MAX_NEWTON):
+    for _ in range(MAX_NEWTON):
         nf_delta = numpy.outer(nfarray, deltas)
         exp_nf_delta = 2**nf_delta
         nf_exp_nf_delta = nftranspose * exp_nf_delta
@@ -1420,13 +1417,8 @@ def train_maxent_classifier_with_megam(
     :see: ``nltk.classify.megam``
     """
 
-    explicit = True
-    bernoulli = True
-    if "explicit" in kwargs:
-        explicit = kwargs["explicit"]
-    if "bernoulli" in kwargs:
-        bernoulli = kwargs["bernoulli"]
-
+    explicit = kwargs.get("explicit", True)
+    bernoulli = kwargs.get("bernoulli", True)
     # Construct an encoding from the training data.
     if encoding is None:
         # Count cutoff can also be controlled by megam with the -minfc
@@ -1447,7 +1439,7 @@ def train_maxent_classifier_with_megam(
             )
         os.close(fd)
     except (OSError, ValueError) as e:
-        raise ValueError("Error while creating megam training file: %s" % e) from e
+        raise ValueError(f"Error while creating megam training file: {e}") from e
 
     # Run megam on the training file.
     options = []
@@ -1456,22 +1448,16 @@ def train_maxent_classifier_with_megam(
         options += ["-explicit"]
     if not bernoulli:
         options += ["-fvals"]
-    if gaussian_prior_sigma:
-        # Lambda is just the precision of the Gaussian prior, i.e. it's the
-        # inverse variance, so the parameter conversion is 1.0/sigma**2.
-        # See https://users.umiacs.umd.edu/~hal/docs/daume04cg-bfgs.pdf
-        inv_variance = 1.0 / gaussian_prior_sigma**2
-    else:
-        inv_variance = 0
+    inv_variance = 1.0 / gaussian_prior_sigma**2 if gaussian_prior_sigma else 0
     options += ["-lambda", "%.2f" % inv_variance, "-tune"]
     if trace < 3:
         options += ["-quiet"]
     if "max_iter" in kwargs:
-        options += ["-maxi", "%s" % kwargs["max_iter"]]
+        options += ["-maxi", f'{kwargs["max_iter"]}']
     if "ll_delta" in kwargs:
         # [xx] this is actually a perplexity delta, not a log
         # likelihood delta
-        options += ["-dpp", "%s" % abs(kwargs["ll_delta"])]
+        options += ["-dpp", f'{abs(kwargs["ll_delta"])}']
     if hasattr(encoding, "cost"):
         options += ["-multilabel"]  # each possible la
     options += ["multiclass", trainfile_name]
@@ -1525,9 +1511,7 @@ class TadmMaxentClassifier(MaxentClassifier):
         write_tadm_file(train_toks, encoding, trainfile)
         trainfile.close()
 
-        options = []
-        options.extend(["-monitor"])
-        options.extend(["-method", algorithm])
+        options = ["-monitor", *["-method", algorithm]]
         if sigma:
             options.extend(["-l2", "%.6f" % sigma**2])
         if max_iter:

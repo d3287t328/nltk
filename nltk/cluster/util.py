@@ -164,10 +164,7 @@ class _DendrogramNode:
             # makes the earliest merges at the start, latest at the end
             queue.sort()
 
-        groups = []
-        for priority, node in queue:
-            groups.append(node.leaves())
-        return groups
+        return [node.leaves() for priority, node in queue]
 
     def __lt__(self, comparator):
         return cosine_distance(self._value, comparator._value) < 0
@@ -240,7 +237,7 @@ class Dendrogram:
         if leaf_labels:
             last_row = leaf_labels
         else:
-            last_row = ["%s" % leaf._value for leaf in leaves]
+            last_row = [f"{leaf._value}" for leaf in leaves]
 
         # find the bottom row and the best cell width
         width = max(map(len, last_row)) + 1

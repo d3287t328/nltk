@@ -76,11 +76,10 @@ class VerbnetCorpusReader(XMLCorpusReader):
         """
         if vnclass is None:
             return sorted(self._lemma_to_class.keys())
-        else:
-            # [xx] should this include subclass members?
-            if isinstance(vnclass, str):
-                vnclass = self.vnclass(vnclass)
-            return [member.get("name") for member in vnclass.findall("MEMBERS/MEMBER")]
+        # [xx] should this include subclass members?
+        if isinstance(vnclass, str):
+            vnclass = self.vnclass(vnclass)
+        return [member.get("name") for member in vnclass.findall("MEMBERS/MEMBER")]
 
     def wordnetids(self, vnclass=None):
         """
@@ -89,17 +88,16 @@ class VerbnetCorpusReader(XMLCorpusReader):
         """
         if vnclass is None:
             return sorted(self._wordnet_to_class.keys())
-        else:
-            # [xx] should this include subclass members?
-            if isinstance(vnclass, str):
-                vnclass = self.vnclass(vnclass)
-            return sum(
-                (
-                    member.get("wn", "").split()
-                    for member in vnclass.findall("MEMBERS/MEMBER")
-                ),
-                [],
-            )
+        # [xx] should this include subclass members?
+        if isinstance(vnclass, str):
+            vnclass = self.vnclass(vnclass)
+        return sum(
+            (
+                member.get("wn", "").split()
+                for member in vnclass.findall("MEMBERS/MEMBER")
+            ),
+            [],
+        )
 
     def classids(self, lemma=None, wordnetid=None, fileid=None, classid=None):
         """
@@ -147,20 +145,17 @@ class VerbnetCorpusReader(XMLCorpusReader):
 
         # Class identifier: get the xml, and find the right elt.
         classid = self.longid(fileid_or_classid)
-        if classid in self._class_to_fileid:
-            fileid = self._class_to_fileid[self.longid(classid)]
-            tree = self.xml(fileid)
-            if classid == tree.get("ID"):
-                return tree
-            else:
-                for subclass in tree.findall(".//VNSUBCLASS"):
-                    if classid == subclass.get("ID"):
-                        return subclass
-                else:
-                    assert False  # we saw it during _index()!
-
-        else:
+        if classid not in self._class_to_fileid:
             raise ValueError(f"Unknown identifier {fileid_or_classid}")
+        fileid = self._class_to_fileid[self.longid(classid)]
+        tree = self.xml(fileid)
+        if classid == tree.get("ID"):
+            return tree
+        for subclass in tree.findall(".//VNSUBCLASS"):
+            if classid == subclass.get("ID"):
+                return subclass
+        else:
+            assert False  # we saw it during _index()!
 
     def fileids(self, vnclass_ids=None):
         """
@@ -193,18 +188,16 @@ class VerbnetCorpusReader(XMLCorpusReader):
         """
         if isinstance(vnclass, str):
             vnclass = self.vnclass(vnclass)
-        frames = []
         vnframes = vnclass.findall("FRAMES/FRAME")
-        for vnframe in vnframes:
-            frames.append(
-                {
-                    "example": self._get_example_within_frame(vnframe),
-                    "description": self._get_description_within_frame(vnframe),
-                    "syntax": self._get_syntactic_list_within_frame(vnframe),
-                    "semantics": self._get_semantics_within_frame(vnframe),
-                }
-            )
-        return frames
+        return [
+            {
+                "example": self._get_example_within_frame(vnframe),
+                "description": self._get_description_within_frame(vnframe),
+                "syntax": self._get_syntactic_list_within_frame(vnframe),
+                "semantics": self._get_semantics_within_frame(vnframe),
+            }
+            for vnframe in vnframes
+        ]
 
     def subclasses(self, vnclass):
         """Returns subclass ids, if any exist
@@ -219,10 +212,10 @@ class VerbnetCorpusReader(XMLCorpusReader):
         if isinstance(vnclass, str):
             vnclass = self.vnclass(vnclass)
 
-        subclasses = [
-            subclass.get("ID") for subclass in vnclass.findall("SUBCLASSES/VNSUBCLASS")
+        return [
+            subclass.get("ID")
+            for subclass in vnclass.findall("SUBCLASSES/VNSUBCLASS")
         ]
-        return subclasses
 
     def themroles(self, vnclass):
         """Returns thematic roles participating in a VerbNet class
@@ -238,18 +231,16 @@ class VerbnetCorpusReader(XMLCorpusReader):
         if isinstance(vnclass, str):
             vnclass = self.vnclass(vnclass)
 
-        themroles = []
-        for trole in vnclass.findall("THEMROLES/THEMROLE"):
-            themroles.append(
-                {
-                    "type": trole.get("type"),
-                    "modifiers": [
-                        {"value": restr.get("Value"), "type": restr.get("type")}
-                        for restr in trole.findall("SELRESTRS/SELRESTR")
-                    ],
-                }
-            )
-        return themroles
+        return [
+            {
+                "type": trole.get("type"),
+                "modifiers": [
+                    {"value": restr.get("Value"), "type": restr.get("type")}
+                    for restr in trole.findall("SELRESTRS/SELRESTR")
+                ],
+            }
+            for trole in vnclass.findall("THEMROLES/THEMROLE")
+        ]
 
     ######################################################################
     # { Index Initialization
@@ -335,8 +326,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
         short id, then return it as-is."""
         if self._SHORTID_RE.match(longid):
             return longid  # it's already a shortid.
-        m = self._LONGID_RE.match(longid)
-        if m:
+        if m := self._LONGID_RE.match(longid):
             return m.group(2)
         else:
             raise ValueError("vnclass identifier %r not found" % longid)
@@ -382,11 +372,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
         :return: example_text: The example sentence for this particular frame
         """
         example_element = vnframe.find("EXAMPLES/EXAMPLE")
-        if example_element is not None:
-            example_text = example_element.text
-        else:
-            example_text = ""
-        return example_text
+        return example_element.text if example_element is not None else ""
 
     def _get_description_within_frame(self, vnframe):
         """Returns member description within frame
@@ -419,8 +405,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
         syntax_within_single_frame = []
         for elt in vnframe.find("SYNTAX"):
             pos_tag = elt.tag
-            modifiers = dict()
-            modifiers["value"] = elt.get("value") if "value" in elt.attrib else ""
+            modifiers = {"value": elt.get("value") if "value" in elt.attrib else ""}
             modifiers["selrestrs"] = [
                 {"value": restr.get("Value"), "type": restr.get("type")}
                 for restr in elt.findall("SELRESTRS/SELRESTR")
@@ -476,7 +461,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
             subclasses = ["(none)"]
         s = "Subclasses: " + " ".join(subclasses)
         return textwrap.fill(
-            s, 70, initial_indent=indent, subsequent_indent=indent + "  "
+            s, 70, initial_indent=indent, subsequent_indent=f"{indent}  "
         )
 
     def pprint_members(self, vnclass, indent=""):
@@ -496,7 +481,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
             members = ["(none)"]
         s = "Members: " + " ".join(members)
         return textwrap.fill(
-            s, 70, initial_indent=indent, subsequent_indent=indent + "  "
+            s, 70, initial_indent=indent, subsequent_indent=f"{indent}  "
         )
 
     def pprint_themroles(self, vnclass, indent=""):
@@ -513,13 +498,12 @@ class VerbnetCorpusReader(XMLCorpusReader):
 
         pieces = []
         for themrole in self.themroles(vnclass):
-            piece = indent + "* " + themrole.get("type")
-            modifiers = [
+            piece = f"{indent}* " + themrole.get("type")
+            if modifiers := [
                 modifier["value"] + modifier["type"]
                 for modifier in themrole["modifiers"]
-            ]
-            if modifiers:
-                piece += "[{}]".format(" ".join(modifiers))
+            ]:
+                piece += f'[{" ".join(modifiers)}]'
             pieces.append(piece)
         return "\n".join(pieces)
 
@@ -534,9 +518,10 @@ class VerbnetCorpusReader(XMLCorpusReader):
         """
         if isinstance(vnclass, str):
             vnclass = self.vnclass(vnclass)
-        pieces = []
-        for vnframe in self.frames(vnclass):
-            pieces.append(self._pprint_single_frame(vnframe, indent))
+        pieces = [
+            self._pprint_single_frame(vnframe, indent)
+            for vnframe in self.frames(vnclass)
+        ]
         return "\n".join(pieces)
 
     def _pprint_single_frame(self, vnframe, indent=""):
@@ -549,12 +534,12 @@ class VerbnetCorpusReader(XMLCorpusReader):
             a VerbNet frame.
         """
         frame_string = self._pprint_description_within_frame(vnframe, indent) + "\n"
-        frame_string += self._pprint_example_within_frame(vnframe, indent + " ") + "\n"
+        frame_string += self._pprint_example_within_frame(vnframe, f"{indent} ") + "\n"
         frame_string += (
-            self._pprint_syntax_within_frame(vnframe, indent + "  Syntax: ") + "\n"
+            self._pprint_syntax_within_frame(vnframe, f"{indent}  Syntax: ") + "\n"
         )
         frame_string += indent + "  Semantics:\n"
-        frame_string += self._pprint_semantics_within_frame(vnframe, indent + "    ")
+        frame_string += self._pprint_semantics_within_frame(vnframe, f"{indent}    ")
         return frame_string
 
     def _pprint_example_within_frame(self, vnframe, indent=""):
@@ -567,7 +552,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
             a Verbnet frame.
         """
         if vnframe["example"]:
-            return indent + " Example: " + vnframe["example"]
+            return f"{indent} Example: " + vnframe["example"]
 
     def _pprint_description_within_frame(self, vnframe, indent=""):
         """Returns pretty printed version of a VerbNet frame description
@@ -580,7 +565,7 @@ class VerbnetCorpusReader(XMLCorpusReader):
         """
         description = indent + vnframe["description"]["primary"]
         if vnframe["description"]["secondary"]:
-            description += " ({})".format(vnframe["description"]["secondary"])
+            description += f' ({vnframe["description"]["secondary"]})'
         return description
 
     def _pprint_syntax_within_frame(self, vnframe, indent=""):
@@ -599,14 +584,14 @@ class VerbnetCorpusReader(XMLCorpusReader):
             if "value" in element["modifiers"] and element["modifiers"]["value"]:
                 modifier_list.append(element["modifiers"]["value"])
             modifier_list += [
-                "{}{}".format(restr["value"], restr["type"])
+                f'{restr["value"]}{restr["type"]}'
                 for restr in (
                     element["modifiers"]["selrestrs"]
                     + element["modifiers"]["synrestrs"]
                 )
             ]
             if modifier_list:
-                piece += "[{}]".format(" ".join(modifier_list))
+                piece += f'[{" ".join(modifier_list)}]'
             pieces.append(piece)
 
         return indent + " ".join(pieces)
