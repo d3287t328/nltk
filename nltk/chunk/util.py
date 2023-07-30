@@ -177,9 +177,7 @@ class ChunkScore:
 
         :rtype: float
         """
-        if self._tags_total == 0:
-            return 1
-        return self._tags_correct / self._tags_total
+        return 1 if self._tags_total == 0 else self._tags_correct / self._tags_total
 
     def precision(self):
         """
@@ -190,10 +188,7 @@ class ChunkScore:
         """
         self._updateMeasures()
         div = self._tp_num + self._fp_num
-        if div == 0:
-            return 0
-        else:
-            return self._tp_num / div
+        return 0 if div == 0 else self._tp_num / div
 
     def recall(self):
         """
@@ -204,10 +199,7 @@ class ChunkScore:
         """
         self._updateMeasures()
         div = self._tp_num + self._fn_num
-        if div == 0:
-            return 0
-        else:
-            return self._tp_num / div
+        return 0 if div == 0 else self._tp_num / div
 
     def f_measure(self, alpha=0.5):
         """
@@ -224,9 +216,7 @@ class ChunkScore:
         self._updateMeasures()
         p = self.precision()
         r = self.recall()
-        if p == 0 or r == 0:  # what if alpha is 0 or 1?
-            return 0
-        return 1 / (alpha / p + (1 - alpha) / r)
+        return 0 if p == 0 or r == 0 else 1 / (alpha / p + (1 - alpha) / r)
 
     def missed(self):
         """
@@ -281,7 +271,7 @@ class ChunkScore:
 
         :rtype: str
         """
-        return "<ChunkScoring of " + repr(len(self)) + " chunks>"
+        return f"<ChunkScoring of {repr(len(self))} chunks>"
 
     def __str__(self):
         """
@@ -348,17 +338,17 @@ def tagstr2tree(
             stack[-1].append(chunk)
             stack.append(chunk)
         elif text[0] == "]":
-            if len(stack) != 2:
-                raise ValueError(f"Unexpected ] at char {match.start():d}")
-            stack.pop()
-        else:
-            if sep is None:
-                stack[-1].append(text)
+            if len(stack) == 2:
+                stack.pop()
             else:
-                word, tag = str2tuple(text, sep)
-                if source_tagset and target_tagset:
-                    tag = map_tag(source_tagset, target_tagset, tag)
-                stack[-1].append((word, tag))
+                raise ValueError(f"Unexpected ] at char {match.start():d}")
+        elif sep is None:
+            stack[-1].append(text)
+        else:
+            word, tag = str2tuple(text, sep)
+            if source_tagset and target_tagset:
+                tag = map_tag(source_tagset, target_tagset, tag)
+            stack[-1].append((word, tag))
 
     if len(stack) != 1:
         raise ValueError(f"Expected ] at char {len(s):d}")
@@ -574,10 +564,7 @@ def ieerstr2tree(
     :rtype: Tree
     """
 
-    # Try looking for a single document.  If that doesn't work, then just
-    # treat everything as if it was within the <TEXT>...</TEXT>.
-    m = _IEER_DOC_RE.match(s)
-    if m:
+    if m := _IEER_DOC_RE.match(s):
         return {
             "text": _ieer_read_text(m.group("text"), root_label),
             "docno": m.group("docno"),

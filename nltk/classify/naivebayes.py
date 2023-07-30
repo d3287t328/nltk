@@ -101,12 +101,9 @@ class NaiveBayesClassifier(ClassifierI):
                 # print('Ignoring unseen feature %s' % fname)
                 del featureset[fname]
 
-        # Find the log probability of each label, given the features.
-        # Start with the log probability of the label itself.
-        logprob = {}
-        for label in self._labels:
-            logprob[label] = self._label_probdist.logprob(label)
-
+        logprob = {
+            label: self._label_probdist.logprob(label) for label in self._labels
+        }
         # Then add in the log probability of features given labels.
         for label in self._labels:
             for (fname, fval) in featureset.items():
@@ -147,8 +144,10 @@ class NaiveBayesClassifier(ClassifierI):
                     cpdist[l1, fname].prob(fval) / cpdist[l0, fname].prob(fval)
                 )
             print(
-                "%24s = %-14r %6s : %-6s = %s : 1.0"
-                % (fname, fval, ("%s" % l1)[:6], ("%s" % l0)[:6], ratio)
+                (
+                    "%24s = %-14r %6s : %-6s = %s : 1.0"
+                    % (fname, fval, f"{l1}"[:6], f"{l0}"[:6], ratio)
+                )
             )
 
     def most_informative_features(self, n=100):
@@ -163,35 +162,34 @@ class NaiveBayesClassifier(ClassifierI):
         """
         if hasattr(self, "_most_informative_features"):
             return self._most_informative_features[:n]
-        else:
-            # The set of (fname, fval) pairs used by this classifier.
-            features = set()
-            # The max & min probability associated w/ each (fname, fval)
-            # pair.  Maps (fname,fval) -> float.
-            maxprob = defaultdict(lambda: 0.0)
-            minprob = defaultdict(lambda: 1.0)
+        # The set of (fname, fval) pairs used by this classifier.
+        features = set()
+        # The max & min probability associated w/ each (fname, fval)
+        # pair.  Maps (fname,fval) -> float.
+        maxprob = defaultdict(lambda: 0.0)
+        minprob = defaultdict(lambda: 1.0)
 
-            for (label, fname), probdist in self._feature_probdist.items():
-                for fval in probdist.samples():
-                    feature = (fname, fval)
-                    features.add(feature)
-                    p = probdist.prob(fval)
-                    maxprob[feature] = max(p, maxprob[feature])
-                    minprob[feature] = min(p, minprob[feature])
-                    if minprob[feature] == 0:
-                        features.discard(feature)
+        for (label, fname), probdist in self._feature_probdist.items():
+            for fval in probdist.samples():
+                feature = (fname, fval)
+                features.add(feature)
+                p = probdist.prob(fval)
+                maxprob[feature] = max(p, maxprob[feature])
+                minprob[feature] = min(p, minprob[feature])
+                if minprob[feature] == 0:
+                    features.discard(feature)
 
-            # Convert features to a list, & sort it by how informative
-            # features are.
-            self._most_informative_features = sorted(
-                features,
-                key=lambda feature_: (
-                    minprob[feature_] / maxprob[feature_],
-                    feature_[0],
-                    feature_[1] in [None, False, True],
-                    str(feature_[1]).lower(),
-                ),
-            )
+        # Convert features to a list, & sort it by how informative
+        # features are.
+        self._most_informative_features = sorted(
+            features,
+            key=lambda feature_: (
+                minprob[feature_] / maxprob[feature_],
+                feature_[0],
+                feature_[1] in [None, False, True],
+                str(feature_[1]).lower(),
+            ),
+        )
         return self._most_informative_features[:n]
 
     @classmethod

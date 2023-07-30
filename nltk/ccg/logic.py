@@ -36,9 +36,9 @@ def compute_function_semantics(function, argument):
 
 
 def compute_composition_semantics(function, argument):
-    assert isinstance(argument, LambdaExpression), (
-        "`" + str(argument) + "` must be a lambda expression"
-    )
+    assert isinstance(
+        argument, LambdaExpression
+    ), f"`{str(argument)}` must be a lambda expression"
     return LambdaExpression(
         argument.variable, ApplicationExpression(function, argument.term).simplify()
     )
@@ -47,10 +47,10 @@ def compute_composition_semantics(function, argument):
 def compute_substitution_semantics(function, argument):
     assert isinstance(function, LambdaExpression) and isinstance(
         function.term, LambdaExpression
-    ), ("`" + str(function) + "` must be a lambda expression with 2 arguments")
-    assert isinstance(argument, LambdaExpression), (
-        "`" + str(argument) + "` must be a lambda expression"
-    )
+    ), f"`{str(function)}` must be a lambda expression with 2 arguments"
+    assert isinstance(
+        argument, LambdaExpression
+    ), f"`{str(argument)}` must be a lambda expression"
 
     new_argument = ApplicationExpression(
         argument, VariableExpression(function.variable)

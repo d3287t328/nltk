@@ -130,13 +130,13 @@ class ConfusionMatrix:
             values = values[:truncate]
 
         if values_in_chart:
-            value_strings = ["%s" % val for val in values]
+            value_strings = [f"{val}" for val in values]
         else:
             value_strings = [str(n + 1) for n in range(len(values))]
 
         # Construct a format string for row values
         valuelen = max(len(val) for val in value_strings)
-        value_format = "%" + repr(valuelen) + "s | "
+        value_format = f"%{repr(valuelen)}s | "
         # Construct a format string for matrix entries
         if show_percents:
             entrylen = 6
@@ -144,7 +144,7 @@ class ConfusionMatrix:
             zerostr = "     ."
         else:
             entrylen = len(repr(self._max_conf))
-            entry_format = "%" + repr(entrylen) + "d"
+            entry_format = f"%{repr(entrylen)}d"
             zerostr = " " * (entrylen - 1) + "."
 
         # Write the column values.
@@ -159,7 +159,7 @@ class ConfusionMatrix:
             s += " |\n"
 
         # Write a dividing line
-        s += "{}-+-{}+\n".format("-" * valuelen, "-" * ((entrylen + 1) * len(values)))
+        s += f'{"-" * valuelen}-+-{"-" * ((entrylen + 1) * len(values))}+\n'
 
         # Write the entries.
         for val, li in zip(value_strings, values):
@@ -175,13 +175,13 @@ class ConfusionMatrix:
                     s += entry_format % confusion[i][j]
                 if i == j:
                     prevspace = s.rfind(" ")
-                    s = s[:prevspace] + "<" + s[prevspace + 1 :] + ">"
+                    s = f"{s[:prevspace]}<{s[prevspace + 1:]}>"
                 else:
                     s += " "
             s += "|\n"
 
         # Write a dividing line
-        s += "{}-+-{}+\n".format("-" * valuelen, "-" * ((entrylen + 1) * len(values)))
+        s += f'{"-" * valuelen}-+-{"-" * ((entrylen + 1) * len(values))}+\n'
 
         # Write a key
         s += "(row = reference; col = test)\n"
@@ -196,7 +196,7 @@ class ConfusionMatrix:
         values = self._values
         str = "Value key:\n"
         indexlen = len(repr(len(values) - 1))
-        key_format = "  %" + repr(indexlen) + "d: %s\n"
+        key_format = f"  %{repr(indexlen)}" + "d: %s\n"
         for i in range(len(values)):
             str += key_format % (i, values[i])
 
@@ -220,9 +220,7 @@ class ConfusionMatrix:
         TP = self[value, value]
         # Number of times `value` was correct
         TP_FN = sum(self[value, pred_value] for pred_value in self._values)
-        if TP_FN == 0:
-            return 0.0
-        return TP / TP_FN
+        return 0.0 if TP_FN == 0 else TP / TP_FN
 
     def precision(self, value):
         """Given a value in the confusion matrix, return the precision
@@ -242,9 +240,7 @@ class ConfusionMatrix:
         TP = self[value, value]
         # Number of times `value` was predicted
         TP_FP = sum(self[real_value, value] for real_value in self._values)
-        if TP_FP == 0:
-            return 0.0
-        return TP / TP_FP
+        return 0.0 if TP_FP == 0 else TP / TP_FP
 
     def f_measure(self, value, alpha=0.5):
         """
@@ -273,9 +269,7 @@ class ConfusionMatrix:
         """
         p = self.precision(value)
         r = self.recall(value)
-        if p == 0.0 or r == 0.0:
-            return 0.0
-        return 1.0 / (alpha / p + (1 - alpha) / r)
+        return 0.0 if p == 0.0 or r == 0.0 else 1.0 / (alpha / p + (1 - alpha) / r)
 
     def evaluate(self, alpha=0.5, truncate=None, sort_by_count=False):
         """

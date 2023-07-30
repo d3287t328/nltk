@@ -40,10 +40,7 @@ class ProverParseError(Exception):
 
 
 def get_domain(goal, assumptions):
-    if goal is None:
-        all_expressions = assumptions
-    else:
-        all_expressions = assumptions + [-goal]
+    all_expressions = assumptions if goal is None else assumptions + [-goal]
     return reduce(operator.or_, (a.constants() for a in all_expressions), set())
 
 
@@ -54,7 +51,7 @@ class ClosedDomainProver(ProverCommandDecorator):
     """
 
     def assumptions(self):
-        assumptions = [a for a in self._command.assumptions()]
+        assumptions = list(self._command.assumptions())
         goal = self._command.goal()
         domain = get_domain(goal, assumptions)
         return [self.replace_quants(ex, domain) for ex in assumptions]
@@ -210,17 +207,12 @@ class ClosedWorldProver(ProverCommandDecorator):
 
             # Turn the signatures into disjuncts
             for sig in predHolder.signatures:
-                equality_exs = []
-                for v1, v2 in zip(new_sig_exs, sig):
-                    equality_exs.append(EqualityExpression(v1, v2))
+                equality_exs = [EqualityExpression(v1, v2) for v1, v2 in zip(new_sig_exs, sig)]
                 disjuncts.append(reduce(lambda x, y: x & y, equality_exs))
 
             # Turn the properties into disjuncts
             for prop in predHolder.properties:
-                # replace variables from the signature with new sig variables
-                bindings = {}
-                for v1, v2 in zip(new_sig_exs, prop[0]):
-                    bindings[v2] = v1
+                bindings = {v2: v1 for v1, v2 in zip(new_sig_exs, prop[0])}
                 disjuncts.append(prop[1].substitute_bindings(bindings))
 
             # make the assumption
@@ -245,7 +237,7 @@ class ClosedWorldProver(ProverCommandDecorator):
         This method figures out how many arguments the predicate takes and
         returns a tuple containing that number of unique variables.
         """
-        return tuple(unique_variable() for i in range(predHolder.signature_len))
+        return tuple(unique_variable() for _ in range(predHolder.signature_len))
 
     def _make_antecedent(self, predicate, signature):
         """
@@ -339,7 +331,7 @@ class PredHolder:
         return f"({self.signatures},{self.properties},{self.signature_len})"
 
     def __repr__(self):
-        return "%s" % self
+        return f"{self}"
 
 
 def closed_domain_demo():
@@ -501,10 +493,8 @@ def combination_prover_demo():
 def default_reasoning_demo():
     lexpr = Expression.fromstring
 
-    premises = []
+    premises = [lexpr(r"all x.(elephant(x)        -> animal(x))")]
 
-    # define taxonomy
-    premises.append(lexpr(r"all x.(elephant(x)        -> animal(x))"))
     premises.append(lexpr(r"all x.(bird(x)            -> animal(x))"))
     premises.append(lexpr(r"all x.(dove(x)            -> bird(x))"))
     premises.append(lexpr(r"all x.(ostrich(x)         -> bird(x))"))

@@ -105,30 +105,27 @@ class MaceCommand(Prover9CommandParent, BaseModelBuilderCommand):
         :param values: a list of 1's and 0's that represent whether a relation holds in a Mace4 model.
         :type values: list of int
         """
-        r = set()
-        for position in [pos for (pos, v) in enumerate(values) if v == 1]:
-            r.add(
-                tuple(MaceCommand._make_relation_tuple(position, values, num_entities))
-            )
-        return r
+        return {
+            tuple(MaceCommand._make_relation_tuple(position, values, num_entities))
+            for position in [pos for (pos, v) in enumerate(values) if v == 1]
+        }
 
     @staticmethod
     def _make_relation_tuple(position, values, num_entities):
         if len(values) == 1:
             return []
-        else:
-            sublist_size = len(values) // num_entities
-            sublist_start = position // sublist_size
-            sublist_position = int(position % sublist_size)
+        sublist_size = len(values) // num_entities
+        sublist_start = position // sublist_size
+        sublist_position = int(position % sublist_size)
 
-            sublist = values[
-                sublist_start * sublist_size : (sublist_start + 1) * sublist_size
-            ]
-            return [
-                MaceCommand._make_model_var(sublist_start)
-            ] + MaceCommand._make_relation_tuple(
-                sublist_position, sublist, num_entities
-            )
+        sublist = values[
+            sublist_start * sublist_size : (sublist_start + 1) * sublist_size
+        ]
+        return [
+            MaceCommand._make_model_var(sublist_start)
+        ] + MaceCommand._make_relation_tuple(
+            sublist_position, sublist, num_entities
+        )
 
     @staticmethod
     def _make_model_var(value):
@@ -295,7 +292,7 @@ def test_model_found(arguments):
         m = MaceCommand(g, assumptions=alist, max_models=50)
         found = m.build_model()
         for a in alist:
-            print("   %s" % a)
+            print(f"   {a}")
         print(f"|- {g}: {decode_result(found)}\n")
 
 
@@ -322,7 +319,7 @@ def test_build_model(arguments):
     print("Assumptions and Goal")
     spacer()
     for a in alist:
-        print("   %s" % a)
+        print(f"   {a}")
     print(f"|- {g}: {decode_result(m.build_model())}\n")
     spacer()
     # print(m.model('standard'))
@@ -341,11 +338,11 @@ def test_transform_output(argument_pair):
     m = MaceCommand(g, assumptions=alist)
     m.build_model()
     for a in alist:
-        print("   %s" % a)
+        print(f"   {a}")
     print(f"|- {g}: {m.build_model()}\n")
     for format in ["standard", "portable", "xml", "cooked"]:
         spacer()
-        print("Using '%s' format" % format)
+        print(f"Using '{format}' format")
         spacer()
         print(m.model(format=format))
 

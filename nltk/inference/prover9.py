@@ -62,9 +62,7 @@ class Prover9CommandParent:
             for a in convert_to_prover9(self.assumptions()):
                 print(a)
         else:
-            raise NameError(
-                "Unrecognized value for 'output_format': %s" % output_format
-            )
+            raise NameError(f"Unrecognized value for 'output_format': {output_format}")
 
 
 class Prover9Command(Prover9CommandParent, BaseProverCommand):
@@ -129,7 +127,7 @@ class Prover9Parent:
                 path_to_bin=binary_location,
                 env_vars=["PROVER9"],
                 url="https://www.cs.unm.edu/~mccune/prover9/",
-                binary_names=[name, name + ".exe"],
+                binary_names=[name, f"{name}.exe"],
                 verbose=verbose,
             )
             self._binary_location = self._prover9_bin.rsplit(os.path.sep, 1)
@@ -179,7 +177,7 @@ class Prover9Parent:
             searchpath=binary_locations,
             env_vars=["PROVER9"],
             url="https://www.cs.unm.edu/~mccune/prover9/",
-            binary_names=[name, name + ".exe"],
+            binary_names=[name, f"{name}.exe"],
             verbose=verbose,
         )
 
@@ -229,14 +227,14 @@ def convert_to_prover9(input):
             try:
                 result.append(_convert_to_prover9(s.simplify()))
             except:
-                print("input %s cannot be converted to Prover9 input syntax" % input)
+                print(f"input {input} cannot be converted to Prover9 input syntax")
                 raise
         return result
     else:
         try:
             return _convert_to_prover9(input.simplify())
         except:
-            print("input %s cannot be converted to Prover9 input syntax" % input)
+            print(f"input {input} cannot be converted to Prover9 input syntax")
             raise
 
 
@@ -259,7 +257,7 @@ def _convert_to_prover9(expression):
             + _convert_to_prover9(expression.term)
         )
     elif isinstance(expression, NegatedExpression):
-        return "-(" + _convert_to_prover9(expression.term) + ")"
+        return f"-({_convert_to_prover9(expression.term)})"
     elif isinstance(expression, AndExpression):
         return (
             "("
@@ -438,7 +436,7 @@ def test_prove(arguments):
         alist = [Expression.fromstring(a) for a in assumptions]
         p = Prover9Command(g, assumptions=alist).prove()
         for a in alist:
-            print("   %s" % a)
+            print(f"   {a}")
         print(f"|- {g}: {p}\n")
 
 

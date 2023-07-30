@@ -117,9 +117,7 @@ class OpinionLexiconCorpusReader(WordListCorpusReader):
 
     def _read_word_block(self, stream):
         words = []
-        for i in range(20):  # Read 20 lines at a time.
-            line = stream.readline()
-            if not line:
-                continue
-            words.append(line.strip())
+        for _ in range(20):
+            if line := stream.readline():
+                words.append(line.strip())
         return words

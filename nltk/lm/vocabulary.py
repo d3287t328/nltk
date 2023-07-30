@@ -213,6 +213,4 @@ class Vocabulary:
         )
 
     def __str__(self):
-        return "<{} with cutoff={} unk_label='{}' and {} items>".format(
-            self.__class__.__name__, self.cutoff, self.unk_label, len(self)
-        )
+        return f"<{self.__class__.__name__} with cutoff={self.cutoff} unk_label='{self.unk_label}' and {len(self)} items>"

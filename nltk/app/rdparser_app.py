@@ -138,10 +138,7 @@ class RecursiveDescentApp:
 
         self._boldfont = Font(family="helvetica", weight="bold", size=self._size.get())
         self._font = Font(family="helvetica", size=self._size.get())
-        if self._size.get() < 0:
-            big = self._size.get() - 2
-        else:
-            big = self._size.get() + 2
+        big = self._size.get() - 2 if self._size.get() < 0 else self._size.get() + 2
         self._bigfont = Font(family="helvetica", weight="bold", size=big)
 
     def _init_grammar(self, parent):
@@ -167,7 +164,7 @@ class RecursiveDescentApp:
 
         self._productions = list(self._parser.grammar().productions())
         for production in self._productions:
-            self._prodlist.insert("end", ("  %s" % production))
+            self._prodlist.insert("end", f"  {production}")
         self._prodlist.config(height=min(len(self._productions), 25))
 
         # Add a scrollbar if there are more than 25 productions.
@@ -525,12 +522,12 @@ class RecursiveDescentApp:
         for index in range(len(productions)):
             if productions[index] in expandable:
                 if productions[index] in untried:
-                    self._prodlist.insert(index, " %s" % productions[index])
+                    self._prodlist.insert(index, f" {productions[index]}")
                 else:
-                    self._prodlist.insert(index, " %s (TRIED)" % productions[index])
+                    self._prodlist.insert(index, f" {productions[index]} (TRIED)")
                 self._prodlist.selection_set(index)
             else:
-                self._prodlist.insert(index, " %s" % productions[index])
+                self._prodlist.insert(index, f" {productions[index]}")
 
     def _position_text(self):
         # Line up the text widgets that are matched against the tree
@@ -569,13 +566,12 @@ class RecursiveDescentApp:
     def _tree_leaves(self, tree=None):
         if tree is None:
             tree = self._tree
-        if isinstance(tree, TreeSegmentWidget):
-            leaves = []
-            for child in tree.subtrees():
-                leaves += self._tree_leaves(child)
-            return leaves
-        else:
+        if not isinstance(tree, TreeSegmentWidget):
             return [tree]
+        leaves = []
+        for child in tree.subtrees():
+            leaves += self._tree_leaves(child)
+        return leaves
 
     #########################################
     ##  Button Callbacks
@@ -634,9 +630,7 @@ class RecursiveDescentApp:
             pass
         elif self._parser.untried_match() and self._match():
             pass
-        elif self._backtrack():
-            pass
-        else:
+        elif not self._backtrack():
             self._lastoper1["text"] = "Finished"
             self._lastoper2["text"] = ""
             self._autostep = 0
@@ -651,8 +645,8 @@ class RecursiveDescentApp:
             return
         old_frontier = self._parser.frontier()
         rv = self._parser.expand()
+        self._lastoper1["text"] = "Expand:"
         if rv is not None:
-            self._lastoper1["text"] = "Expand:"
             self._lastoper2["text"] = rv
             self._prodlist.selection_clear(0, "end")
             index = self._productions.index(rv)
@@ -660,7 +654,6 @@ class RecursiveDescentApp:
             self._animate_expand(old_frontier[0])
             return True
         else:
-            self._lastoper1["text"] = "Expand:"
             self._lastoper2["text"] = "(all expansions tried)"
             return False
 
@@ -669,13 +662,12 @@ class RecursiveDescentApp:
             return
         old_frontier = self._parser.frontier()
         rv = self._parser.match()
+        self._lastoper1["text"] = "Match:"
         if rv is not None:
-            self._lastoper1["text"] = "Match:"
             self._lastoper2["text"] = rv
             self._animate_match(old_frontier[0])
             return True
         else:
-            self._lastoper1["text"] = "Match:"
             self._lastoper2["text"] = "(failed)"
             return False
 
@@ -787,9 +779,7 @@ class RecursiveDescentApp:
             return
         index = int(selection[0])
         old_frontier = self._parser.frontier()
-        production = self._parser.expand(self._productions[index])
-
-        if production:
+        if production := self._parser.expand(self._productions[index]):
             self._lastoper1["text"] = "Expand:"
             self._lastoper2["text"] = production
             self._prodlist.selection_clear(0, "end")
@@ -881,9 +871,7 @@ class RecursiveDescentApp:
 
         index = parent.subtrees().index(treeseg)
 
-        # Handle siblings to the right
-        rsiblings = parent.subtrees()[index + 1 :]
-        if rsiblings:
+        if rsiblings := parent.subtrees()[index + 1 :]:
             dx = treeseg.bbox()[2] - rsiblings[0].bbox()[0] + 10
             for sibling in rsiblings:
                 sibling.move(dx, 0)
@@ -1005,7 +993,7 @@ class RecursiveDescentApp:
         self._productions = list(grammar.productions())
         self._prodlist.delete(0, "end")
         for production in self._productions:
-            self._prodlist.insert("end", (" %s" % production))
+            self._prodlist.insert("end", f" {production}")
 
     def edit_sentence(self, *e):
         sentence = " ".join(self._sent)

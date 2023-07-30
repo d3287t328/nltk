@@ -1121,9 +1121,11 @@ def align(str1, str2, epsilon=0):
 
     alignments = []
     for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if S[i, j] >= T:
-                alignments.append(_retrieve(i, j, 0, S, T, str1, str2, []))
+        alignments.extend(
+            _retrieve(i, j, 0, S, T, str1, str2, [])
+            for j in range(1, n + 1)
+            if S[i, j] >= T
+        )
     return alignments
 
 
@@ -1136,51 +1138,50 @@ def _retrieve(i, j, s, S, T, str1, str2, out):
     """
     if S[i, j] == 0:
         return out
-    else:
-        if j > 1 and S[i - 1, j - 2] + sigma_exp(str1[i - 1], str2[j - 2 : j]) + s >= T:
-            out.insert(0, (str1[i - 1], str2[j - 2 : j]))
-            _retrieve(
-                i - 1,
-                j - 2,
-                s + sigma_exp(str1[i - 1], str2[j - 2 : j]),
-                S,
-                T,
-                str1,
-                str2,
-                out,
-            )
-        elif (
-            i > 1 and S[i - 2, j - 1] + sigma_exp(str2[j - 1], str1[i - 2 : i]) + s >= T
-        ):
-            out.insert(0, (str1[i - 2 : i], str2[j - 1]))
-            _retrieve(
-                i - 2,
-                j - 1,
-                s + sigma_exp(str2[j - 1], str1[i - 2 : i]),
-                S,
-                T,
-                str1,
-                str2,
-                out,
-            )
-        elif S[i, j - 1] + sigma_skip(str2[j - 1]) + s >= T:
-            out.insert(0, ("-", str2[j - 1]))
-            _retrieve(i, j - 1, s + sigma_skip(str2[j - 1]), S, T, str1, str2, out)
-        elif S[i - 1, j] + sigma_skip(str1[i - 1]) + s >= T:
-            out.insert(0, (str1[i - 1], "-"))
-            _retrieve(i - 1, j, s + sigma_skip(str1[i - 1]), S, T, str1, str2, out)
-        elif S[i - 1, j - 1] + sigma_sub(str1[i - 1], str2[j - 1]) + s >= T:
-            out.insert(0, (str1[i - 1], str2[j - 1]))
-            _retrieve(
-                i - 1,
-                j - 1,
-                s + sigma_sub(str1[i - 1], str2[j - 1]),
-                S,
-                T,
-                str1,
-                str2,
-                out,
-            )
+    if j > 1 and S[i - 1, j - 2] + sigma_exp(str1[i - 1], str2[j - 2 : j]) + s >= T:
+        out.insert(0, (str1[i - 1], str2[j - 2 : j]))
+        _retrieve(
+            i - 1,
+            j - 2,
+            s + sigma_exp(str1[i - 1], str2[j - 2 : j]),
+            S,
+            T,
+            str1,
+            str2,
+            out,
+        )
+    elif (
+        i > 1 and S[i - 2, j - 1] + sigma_exp(str2[j - 1], str1[i - 2 : i]) + s >= T
+    ):
+        out.insert(0, (str1[i - 2 : i], str2[j - 1]))
+        _retrieve(
+            i - 2,
+            j - 1,
+            s + sigma_exp(str2[j - 1], str1[i - 2 : i]),
+            S,
+            T,
+            str1,
+            str2,
+            out,
+        )
+    elif S[i, j - 1] + sigma_skip(str2[j - 1]) + s >= T:
+        out.insert(0, ("-", str2[j - 1]))
+        _retrieve(i, j - 1, s + sigma_skip(str2[j - 1]), S, T, str1, str2, out)
+    elif S[i - 1, j] + sigma_skip(str1[i - 1]) + s >= T:
+        out.insert(0, (str1[i - 1], "-"))
+        _retrieve(i - 1, j, s + sigma_skip(str1[i - 1]), S, T, str1, str2, out)
+    elif S[i - 1, j - 1] + sigma_sub(str1[i - 1], str2[j - 1]) + s >= T:
+        out.insert(0, (str1[i - 1], str2[j - 1]))
+        _retrieve(
+            i - 1,
+            j - 1,
+            s + sigma_sub(str1[i - 1], str2[j - 1]),
+            S,
+            T,
+            str1,
+            str2,
+            out,
+        )
     return out
 
 
@@ -1220,10 +1221,7 @@ def delta(p, q):
     (Kondrak 2002: 54)
     """
     features = R(p, q)
-    total = 0
-    for f in features:
-        total += diff(p, q, f) * salience[f]
-    return total
+    return sum(diff(p, q, f) * salience[f] for f in features)
 
 
 def diff(p, q, f):
@@ -1242,9 +1240,7 @@ def R(p, q):
 
     (Kondrak 2002: 54)
     """
-    if p in consonants or q in consonants:
-        return R_c
-    return R_v
+    return R_c if p in consonants or q in consonants else R_v
 
 
 def V(p):
@@ -1253,9 +1249,7 @@ def V(p):
 
     (Kondrak 2002: 54)
     """
-    if p in consonants:
-        return 0
-    return C_vwl
+    return 0 if p in consonants else C_vwl
 
 
 # === Test ===

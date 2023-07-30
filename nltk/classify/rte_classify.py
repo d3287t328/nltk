@@ -93,7 +93,7 @@ class RTEFeatureExtractor:
                 print("word overlap", self._overlap - ne_overlap)
             return self._overlap - ne_overlap
         else:
-            raise ValueError("Type not recognized:'%s'" % toktype)
+            raise ValueError(f"Type not recognized:'{toktype}'")
 
     def hyp_extra(self, toktype, debug=True):
         """
@@ -108,7 +108,7 @@ class RTEFeatureExtractor:
         elif toktype == "word":
             return self._hyp_extra - ne_extra
         else:
-            raise ValueError("Type not recognized: '%s'" % toktype)
+            raise ValueError(f"Type not recognized: '{toktype}'")
 
     @staticmethod
     def _ne(token):
@@ -118,9 +118,7 @@ class RTEFeatureExtractor:
 
         :type token: str
         """
-        if token.istitle() or token.isupper():
-            return True
-        return False
+        return bool(token.istitle() or token.isupper())
 
     @staticmethod
     def _lemmatize(word):
@@ -130,16 +128,12 @@ class RTEFeatureExtractor:
         from nltk.corpus import wordnet as wn
 
         lemma = wn.morphy(word, pos=wn.VERB)
-        if lemma is not None:
-            return lemma
-        return word
+        return lemma if lemma is not None else word
 
 
 def rte_features(rtepair):
     extractor = RTEFeatureExtractor(rtepair)
-    features = {}
-    features["alwayson"] = True
-    features["word_overlap"] = len(extractor.overlap("word"))
+    features = {"alwayson": True, "word_overlap": len(extractor.overlap("word"))}
     features["word_hyp_extra"] = len(extractor.hyp_extra("word"))
     features["ne_overlap"] = len(extractor.overlap("ne"))
     features["ne_hyp_extra"] = len(extractor.hyp_extra("ne"))
@@ -167,15 +161,10 @@ def rte_classifier(algorithm, sample_N=None):
 
     # Train the classifier
     print("Training classifier...")
-    if algorithm in ["megam"]:  # MEGAM based algorithms.
-        clf = MaxentClassifier.train(featurized_train_set, algorithm)
-    elif algorithm in ["GIS", "IIS"]:  # Use default GIS/IIS MaxEnt algorithm
+    if algorithm in ["megam", "GIS", "IIS"]:  # MEGAM based algorithms.
         clf = MaxentClassifier.train(featurized_train_set, algorithm)
     else:
-        err_msg = str(
-            "RTEClassifier only supports these algorithms:\n "
-            "'megam', 'GIS', 'IIS'.\n"
-        )
+        err_msg = "RTEClassifier only supports these algorithms:\n 'megam', 'GIS', 'IIS'.\n"
         raise Exception(err_msg)
     print("Testing classifier...")
     acc = accuracy(clf, featurized_test_set)

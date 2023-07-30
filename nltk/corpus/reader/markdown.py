@@ -16,7 +16,7 @@ def comma_separated_string_args(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        _args = list()
+        _args = []
         for arg in args:
             if isinstance(arg, str):
                 _args.append({part.strip() for part in arg.split(",")})
@@ -33,10 +33,10 @@ def comma_separated_string_args(func):
 
 
 def read_parse_blankline_block(stream, parser):
-    block = read_blankline_block(stream)
-    if block:
+    if block := read_blankline_block(stream):
         return [parser.render(block[0])]
-    return block
+    else:
+        return block
 
 
 class MarkdownBlock:
@@ -124,7 +124,7 @@ class MarkdownCorpusReader(PlaintextCorpusReader):
 
     # This override takes care of removing markup.
     def _read_word_block(self, stream):
-        words = list()
+        words = []
         for para in self._para_block_reader(stream):
             words.extend(self._word_tokenizer.tokenize(para))
         return words
@@ -147,18 +147,17 @@ class CategorizedMarkdownCorpusReader(CategorizedCorpusReader, MarkdownCorpusRea
         are passed to the ``MarkdownCorpusReader`` constructor.
         """
         cat_args = ["cat_pattern", "cat_map", "cat_file"]
-        if not any(arg in kwargs for arg in cat_args):
+        if all(arg not in kwargs for arg in cat_args):
             # Initialize with a blank map now,
             # and try to build categories from document metadata later.
-            kwargs["cat_map"] = dict()
+            kwargs["cat_map"] = {}
         CategorizedCorpusReader.__init__(self, kwargs)
         MarkdownCorpusReader.__init__(self, *args, **kwargs)
 
         # Map file IDs to categories if self._map exists but is still empty:
         if self._map is not None and not self._map:
             for file_id in self._fileids:
-                metadata = self.metadata(file_id)
-                if metadata:
+                if metadata := self.metadata(file_id):
                     self._map[file_id] = metadata[0].get(cat_field, [])
 
     ### Begin CategorizedCorpusReader Overrides
@@ -168,9 +167,7 @@ class CategorizedMarkdownCorpusReader(CategorizedCorpusReader, MarkdownCorpusRea
 
     @comma_separated_string_args
     def fileids(self, categories=None):
-        if categories is None:
-            return self._fileids
-        return super().fileids(categories)
+        return self._fileids if categories is None else super().fileids(categories)
 
     ### End CategorizedCorpusReader Overrides
 
@@ -224,7 +221,7 @@ class CategorizedMarkdownCorpusReader(CategorizedCorpusReader, MarkdownCorpusRea
         closing_tokens = filter(
             lambda t: t.level == 0 and t.type == "blockquote_close", tokens
         )
-        blockquotes = list()
+        blockquotes = []
         for o, c in zip(opening_tokens, closing_tokens):
             opening_index = tokens.index(o)
             closing_index = tokens.index(c, opening_index)
@@ -300,7 +297,7 @@ class CategorizedMarkdownCorpusReader(CategorizedCorpusReader, MarkdownCorpusRea
         closing_tokens = filter(
             lambda t: t.level == 0 and t.type in closing_types, tokens
         )
-        list_blocks = list()
+        list_blocks = []
         for o, c in zip(opening_tokens, closing_tokens):
             opening_index = tokens.index(o)
             closing_index = tokens.index(c, opening_index)
@@ -318,7 +315,7 @@ class CategorizedMarkdownCorpusReader(CategorizedCorpusReader, MarkdownCorpusRea
         return self.concatenated_view(self.list_reader, fileids, categories)
 
     def section_reader(self, stream):
-        section_blocks, block = list(), list()
+        section_blocks, block = [], []
         for t in self.parser.parse(stream.read()):
             if t.level == 0 and t.type == "heading_open":
                 if not block:

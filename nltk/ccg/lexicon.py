@@ -69,7 +69,7 @@ class Token:
         semantics_str = ""
         if self._semantics is not None:
             semantics_str = " {" + str(self._semantics) + "}"
-        return "" + str(self._categ) + semantics_str
+        return f"{str(self._categ)}{semantics_str}"
 
     def __cmp__(self, other):
         if not isinstance(other, Token):
@@ -118,10 +118,10 @@ class CCGLexicon:
             first = True
             for cat in self._entries[ident]:
                 if not first:
-                    string = string + " | "
+                    string = f"{string} | "
                 else:
                     first = False
-                string = string + "%s" % cat
+                string = f"{string}{cat}"
         return string
 
 
@@ -146,8 +146,8 @@ def matchBrackets(string):
             inside = inside + rest[0]
             rest = rest[1:]
     if rest.startswith(")"):
-        return (inside + ")", rest[1:])
-    raise AssertionError("Unmatched bracket in string '" + string + "'")
+        return f"{inside})", rest[1:]
+    raise AssertionError(f"Unmatched bracket in string '{string}'")
 
 
 def nextCategory(string):
@@ -171,9 +171,7 @@ def parseSubscripts(subscr):
     """
     Parse the subscripts for a primitive category
     """
-    if subscr:
-        return subscr[1:-1].split(",")
-    return []
+    return subscr[1:-1].split(",") if subscr else []
 
 
 def parsePrimitiveCategory(chunks, primitives, families, var):
@@ -202,7 +200,7 @@ def parsePrimitiveCategory(chunks, primitives, families, var):
         subscrs = parseSubscripts(chunks[1])
         return (PrimitiveCategory(catstr, subscrs), var)
     raise AssertionError(
-        "String '" + catstr + "' is neither a family nor primitive category."
+        f"String '{catstr}' is neither a family nor primitive category."
     )
 
 
@@ -223,7 +221,7 @@ def augParseCategory(line, primitives, families, var=None):
 
     while rest != "":
         app = APP_RE.match(rest).groups()
-        direction = parseApplication(app[0:3])
+        direction = parseApplication(app[:3])
         rest = app[3]
 
         (cat_string, rest) = nextCategory(rest)
@@ -243,9 +241,9 @@ def fromstring(lex_str, include_semantics=False):
     Convert string representation into a lexicon for CCGs.
     """
     CCGVar.reset_id()
-    primitives = []
     families = {}
     entries = defaultdict(list)
+    primitives = []
     for line in lex_str.splitlines():
         # Strip comments and leading/trailing whitespace.
         line = COMMENTS_RE.match(line).groups()[0].strip()
@@ -274,8 +272,7 @@ def fromstring(lex_str, include_semantics=False):
                 if include_semantics is True:
                     if semantics_str is None:
                         raise AssertionError(
-                            line
-                            + " must contain semantics because include_semantics is set to True"
+                            f"{line} must contain semantics because include_semantics is set to True"
                         )
                     else:
                         semantics = Expression.fromstring(

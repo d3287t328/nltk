@@ -58,11 +58,10 @@ class TableauProver(Prover):
                 "maximum recursion depth exceeded"
             ):
                 result = False
+            elif verbose:
+                print(e)
             else:
-                if verbose:
-                    print(e)
-                else:
-                    raise e
+                raise e
         return (result, "\n".join(debugger.lines))
 
     def _attempt_proof(self, agenda, accessible_vars, atoms, debug):
@@ -181,7 +180,7 @@ class TableauProver(Prover):
         for i, arg in enumerate(args):
             if not TableauProver.is_atom(arg):
                 ctx = f
-                nv = Variable("X%s" % _counter.get())
+                nv = Variable(f"X{_counter.get()}")
                 for j, a in enumerate(args):
                     ctx = ctx(VariableExpression(nv)) if i == j else ctx(a)
                 if context:
@@ -198,7 +197,7 @@ class TableauProver(Prover):
         for i, arg in enumerate(args):
             if not TableauProver.is_atom(arg):
                 ctx = f
-                nv = Variable("X%s" % _counter.get())
+                nv = Variable(f"X{_counter.get()}")
                 for j, a in enumerate(args):
                     ctx = ctx(VariableExpression(nv)) if i == j else ctx(a)
                 if context:
@@ -358,29 +357,23 @@ class TableauProver(Prover):
 
         # if there are accessible_vars on the path
         if accessible_vars:
-            # get the set of bound variables that have not be used by this AllExpression
-            bv_available = accessible_vars - current._used_vars
-
-            if bv_available:
+            if bv_available := accessible_vars - current._used_vars:
                 variable_to_use = list(bv_available)[0]
-                debug.line("--> Using '%s'" % variable_to_use, 2)
+                debug.line(f"--> Using '{variable_to_use}'", 2)
                 current._used_vars |= {variable_to_use}
                 agenda.put(
                     current.term.replace(current.variable, variable_to_use), context
                 )
-                agenda[Categories.ALL].add((current, context))
-                return self._attempt_proof(agenda, accessible_vars, atoms, debug + 1)
-
             else:
                 # no more available variables to substitute
                 debug.line("--> Variables Exhausted", 2)
                 current._exhausted = True
-                agenda[Categories.ALL].add((current, context))
-                return self._attempt_proof(agenda, accessible_vars, atoms, debug + 1)
+            agenda[Categories.ALL].add((current, context))
+            return self._attempt_proof(agenda, accessible_vars, atoms, debug + 1)
 
         else:
             new_unique_variable = VariableExpression(unique_variable())
-            debug.line("--> Using '%s'" % new_unique_variable, 2)
+            debug.line(f"--> Using '{new_unique_variable}'", 2)
             current._used_vars |= {new_unique_variable}
             agenda.put(
                 current.term.replace(current.variable, new_unique_variable), context
@@ -397,13 +390,8 @@ class TableauProver(Prover):
             e = e.term
 
         if isinstance(e, ApplicationExpression):
-            for arg in e.args:
-                if not TableauProver.is_atom(arg):
-                    return False
-            return True
-        elif isinstance(e, AbstractVariableExpression) or isinstance(
-            e, LambdaExpression
-        ):
+            return all(TableauProver.is_atom(arg) for arg in e.args)
+        elif isinstance(e, (AbstractVariableExpression, LambdaExpression)):
             return True
         else:
             return False
@@ -428,7 +416,7 @@ class TableauProverCommand(BaseProverCommand):
 
 class Agenda:
     def __init__(self):
-        self.sets = tuple(set() for i in range(21))
+        self.sets = tuple(set() for _ in range(21))
 
     def clone(self):
         new_agenda = Agenda()
@@ -438,7 +426,7 @@ class Agenda:
         for allEx, _ in set_list[Categories.ALL]:
             new_allEx = AllExpression(allEx.variable, allEx.term)
             try:
-                new_allEx._used_vars = {used for used in allEx._used_vars}
+                new_allEx._used_vars = set(allEx._used_vars)
             except AttributeError:
                 new_allEx._used_vars = set()
             new_allExs.add((new_allEx, None))
@@ -459,7 +447,7 @@ class Agenda:
         if isinstance(expression, AllExpression):
             ex_to_add = AllExpression(expression.variable, expression.term)
             try:
-                ex_to_add._used_vars = {used for used in expression._used_vars}
+                ex_to_add._used_vars = set(expression._used_vars)
             except AttributeError:
                 ex_to_add._used_vars = set()
         else:
@@ -481,17 +469,16 @@ class Agenda:
         """Pop the first expression that appears in the agenda"""
         for i, s in enumerate(self.sets):
             if s:
-                if i in [Categories.N_EQ, Categories.ALL]:
-                    for ex in s:
-                        try:
-                            if not ex[0]._exhausted:
-                                s.remove(ex)
-                                return (ex, i)
-                        except AttributeError:
+                if i not in [Categories.N_EQ, Categories.ALL]:
+                    return (s.pop(), i)
+                for ex in s:
+                    try:
+                        if not ex[0]._exhausted:
                             s.remove(ex)
                             return (ex, i)
-                else:
-                    return (s.pop(), i)
+                    except AttributeError:
+                        s.remove(ex)
+                        return (ex, i)
         return ((None, None), None)
 
     def replace_all(self, old, new):
@@ -533,7 +520,7 @@ class Agenda:
         elif isinstance(current, ApplicationExpression):
             return Categories.APP
         else:
-            raise ProverParseError("cannot categorize %s" % current.__class__.__name__)
+            raise ProverParseError(f"cannot categorize {current.__class__.__name__}")
 
     def _categorize_NegatedExpression(self, current):
         negated = current.term
@@ -561,7 +548,7 @@ class Agenda:
         elif isinstance(negated, ApplicationExpression):
             return Categories.N_APP
         else:
-            raise ProverParseError("cannot categorize %s" % negated.__class__.__name__)
+            raise ProverParseError(f"cannot categorize {negated.__class__.__name__}")
 
 
 class Debug:
@@ -579,21 +566,15 @@ class Debug:
     def line(self, data, indent=0):
         if isinstance(data, tuple):
             ex, ctx = data
-            if ctx:
-                data = f"{ex}, {ctx}"
-            else:
-                data = "%s" % ex
-
+            data = f"{ex}, {ctx}" if ctx else f"{ex}"
             if isinstance(ex, AllExpression):
                 try:
-                    used_vars = "[%s]" % (
-                        ",".join("%s" % ve.variable.name for ve in ex._used_vars)
-                    )
-                    data += ":   %s" % used_vars
+                    used_vars = f'[{",".join(f"{ve.variable.name}" for ve in ex._used_vars)}]'
+                    data += f":   {used_vars}"
                 except AttributeError:
                     data += ":   []"
 
-        newline = "{}{}".format("   " * (self.indent + indent), data)
+        newline = f'{"   " * (self.indent + indent)}{data}'
         self.lines.append(newline)
 
         if self.verbose:

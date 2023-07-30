@@ -181,7 +181,7 @@ class DiscourseTester:
         :type background: list(Expression)
         """
         self._input = input
-        self._sentences = {"s%s" % i: sent for i, sent in enumerate(input)}
+        self._sentences = {f"s{i}": sent for i, sent in enumerate(input)}
         self._models = None
         self._readings = {}
         self._reading_command = (
@@ -229,14 +229,11 @@ class DiscourseTester:
                 for sent_reading in self._get_readings(sentence):
                     tp = Prover9Command(goal=sent_reading, assumptions=assumptions)
                     if tp.prove():
-                        print(
-                            "Sentence '%s' under reading '%s':"
-                            % (sentence, str(sent_reading))
-                        )
-                        print("Not informative relative to thread '%s'" % tid)
+                        print(f"Sentence '{sentence}' under reading '{str(sent_reading)}':")
+                        print(f"Not informative relative to thread '{tid}'")
 
         self._input.append(sentence)
-        self._sentences = {"s%s" % i: sent for i, sent in enumerate(self._input)}
+        self._sentences = {f"s{i}": sent for i, sent in enumerate(self._input)}
         # check whether adding the new sentence to the discourse preserves consistency (i.e. a model can be found for the combined set of
         # of assumptions
         if consistchk:
@@ -256,12 +253,11 @@ class DiscourseTester:
             self._input.remove(sentence)
         except ValueError:
             print(
-                "Retraction failed. The sentence '%s' is not part of the current discourse:"
-                % sentence
+                f"Retraction failed. The sentence '{sentence}' is not part of the current discourse:"
             )
             self.sentences()
             return None
-        self._sentences = {"s%s" % i: sent for i, sent in enumerate(self._input)}
+        self._sentences = {f"s{i}": sent for i, sent in enumerate(self._input)}
         self.readings(verbose=False)
         if verbose:
             print("Current sentences are ")
@@ -307,7 +303,7 @@ class DiscourseTester:
         thread_list = [[]]
         for sid in sorted(self._readings):
             thread_list = self.multiply(thread_list, sorted(self._readings[sid]))
-        self._threads = {"d%s" % tid: thread for tid, thread in enumerate(thread_list)}
+        self._threads = {f"d{tid}": thread for tid, thread in enumerate(thread_list)}
         # re-initialize the filtered threads
         self._filtered_threads = {}
         # keep the same ids, but only include threads which get models
@@ -321,13 +317,13 @@ class DiscourseTester:
         Print out the readings for  the discourse (or a single sentence).
         """
         if sentence is not None:
-            print("The sentence '%s' has these readings:" % sentence)
+            print(f"The sentence '{sentence}' has these readings:")
             for r in [str(reading) for reading in (self._get_readings(sentence))]:
-                print("    %s" % r)
+                print(f"    {r}")
         else:
             for sid in sorted(self._readings):
                 print()
-                print("%s readings:" % sid)
+                print(f"{sid} readings:")
                 print()  #'-' * 30
                 for rid in sorted(self._readings[sid]):
                     lf = self._readings[sid][rid]
@@ -344,16 +340,13 @@ class DiscourseTester:
                     self._readings[rid.split("-")[0]][rid] for rid in self._threads[tid]
                 ]
                 try:
-                    thread_reading = (
-                        ": %s"
-                        % self._reading_command.combine_readings(readings).normalize()
-                    )
+                    thread_reading = f": {self._reading_command.combine_readings(readings).normalize()}"
                 except Exception as e:
-                    thread_reading = ": INVALID: %s" % e.__class__.__name__
+                    thread_reading = f": INVALID: {e.__class__.__name__}"
             else:
                 thread_reading = ""
 
-            print("%s:" % tid, self._threads[tid], thread_reading)
+            print(f"{tid}:", self._threads[tid], thread_reading)
 
     def readings(
         self,
@@ -431,7 +424,7 @@ class DiscourseTester:
             results.append((tid, modelfound))
             if show:
                 spacer(80)
-                print("Model for Discourse Thread %s" % tid)
+                print(f"Model for Discourse Thread {tid}")
                 spacer(80)
                 if verbose:
                     for a in assumptions:
@@ -458,18 +451,16 @@ class DiscourseTester:
         for (tid, modelfound) in self._check_consistency(
             threads, show=show, verbose=verbose
         ):
-            idlist = [rid for rid in threads[tid]]
+            idlist = list(threads[tid])
 
             if not modelfound:
                 print(f"Inconsistent discourse: {tid} {idlist}:")
-                for rid, reading in self.expand_threads(tid):
-                    print(f"    {rid}: {reading.normalize()}")
-                print()
             else:
                 print(f"Consistent discourse: {tid} {idlist}:")
-                for rid, reading in self.expand_threads(tid):
-                    print(f"    {rid}: {reading.normalize()}")
-                print()
+
+            for rid, reading in self.expand_threads(tid):
+                print(f"    {rid}: {reading.normalize()}")
+            print()
 
     def add_background(self, background, verbose=False):
         """
@@ -484,7 +475,7 @@ class DiscourseTester:
         for (count, e) in enumerate(background):
             assert isinstance(e, Expression)
             if verbose:
-                print("Adding assumption %s to background" % count)
+                print(f"Adding assumption {count} to background")
             self._background.append(e)
 
         # update the state
@@ -496,7 +487,7 @@ class DiscourseTester:
         Show the current background assumptions.
         """
         for e in self._background:
-            print(str(e))
+            print(e)
 
     ###############################
     # Misc

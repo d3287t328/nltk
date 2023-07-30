@@ -224,12 +224,12 @@ class LanguageModel(metaclass=ABCMeta):
             )
         # We build up text one word at a time using the preceding context.
         generated = []
-        for _ in range(num_words):
-            generated.append(
-                self.generate(
-                    num_words=1,
-                    text_seed=text_seed + generated,
-                    random_seed=random_generator,
-                )
+        generated.extend(
+            self.generate(
+                num_words=1,
+                text_seed=text_seed + generated,
+                random_seed=random_generator,
             )
+            for _ in range(num_words)
+        )
         return generated

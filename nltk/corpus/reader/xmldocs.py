@@ -170,11 +170,9 @@ class XMLCorpusView(StreamBackedCorpusView):
             return "utf-32-le"
         if s.startswith(codecs.BOM_UTF8):
             return "utf-8"
-        m = re.match(rb'\s*<\?xml\b.*\bencoding="([^"]+)"', s)
-        if m:
+        if m := re.match(rb'\s*<\?xml\b.*\bencoding="([^"]+)"', s):
             return m.group(1).decode()
-        m = re.match(rb"\s*<\?xml\b.*\bencoding='([^']+)'", s)
-        if m:
+        if m := re.match(rb"\s*<\?xml\b.*\bencoding='([^']+)'", s):
             return m.group(1).decode()
         # No encoding found -- what should the default be?
         return "utf-8"
@@ -265,7 +263,7 @@ class XMLCorpusView(StreamBackedCorpusView):
                 pos = stream.tell() - (
                     len(fragment) - re.search("[<>]", fragment).end()
                 )
-                raise ValueError('Unexpected ">" near char %s' % pos)
+                raise ValueError(f'Unexpected ">" near char {pos}')
 
             # End of file?
             if not xml_block:

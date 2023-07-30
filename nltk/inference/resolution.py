@@ -65,11 +65,10 @@ class ResolutionProver(Prover):
             ):
                 result = False
                 clauses = []
+            elif verbose:
+                print(e)
             else:
-                if verbose:
-                    print(e)
-                else:
-                    raise e
+                raise e
         return (result, clauses)
 
     def _attempt_proof(self, clauses):
@@ -81,18 +80,13 @@ class ResolutionProver(Prover):
             if not clauses[i].is_tautology():
                 # since we try clauses in order, we should start after the last
                 # index tried
-                if tried[i]:
-                    j = tried[i][-1] + 1
-                else:
-                    j = i + 1  # nothing tried yet for 'i', so start with the next
-
+                j = tried[i][-1] + 1 if tried[i] else i + 1
                 while j < len(clauses):
                     # don't: 1) unify a clause with itself,
                     #       2) use tautologies
                     if i != j and j and not clauses[j].is_tautology():
                         tried[i].append(j)
-                        newclauses = clauses[i].unify(clauses[j])
-                        if newclauses:
+                        if newclauses := clauses[i].unify(clauses[j]):
                             for newclause in newclauses:
                                 newclause._parents = (i + 1, j + 1)
                                 clauses.append(newclause)
@@ -217,12 +211,7 @@ class Clause(list):
                 for j, c2 in enumerate(newclauses):
                     if i != j and j not in subsumed and c1.subsumes(c2):
                         subsumed.append(j)
-        result = []
-        for i in range(len(newclauses)):
-            if i not in subsumed:
-                result.append(newclauses[i])
-
-        return result
+        return [newclauses[i] for i in range(len(newclauses)) if i not in subsumed]
 
     def isSubsetOf(self, other):
         """
@@ -231,10 +220,7 @@ class Clause(list):
         :param other: ``Clause``
         :return: bool
         """
-        for a in self:
-            if a not in other:
-                return False
-        return True
+        return all(a in other for a in self)
 
     def subsumes(self, other):
         """
@@ -295,14 +281,15 @@ class Clause(list):
                 j = len(self) - 1
                 while j > i:
                     b = self[j]
-                    if isinstance(a, NegatedExpression):
-                        if a.term == b:
-                            self._is_tautology = True
-                            return True
-                    elif isinstance(b, NegatedExpression):
-                        if a == b.term:
-                            self._is_tautology = True
-                            return True
+                    if (
+                        isinstance(a, NegatedExpression)
+                        and a.term == b
+                        or not isinstance(a, NegatedExpression)
+                        and isinstance(b, NegatedExpression)
+                        and a == b.term
+                    ):
+                        self._is_tautology = True
+                        return True
                     j -= 1
         self._is_tautology = False
         return False
@@ -331,10 +318,10 @@ class Clause(list):
         return Clause([atom.substitute_bindings(bindings) for atom in self])
 
     def __str__(self):
-        return "{" + ", ".join("%s" % item for item in self) + "}"
+        return "{" + ", ".join(f"{item}" for item in self) + "}"
 
     def __repr__(self):
-        return "%s" % self
+        return f"{self}"
 
 
 def _iterate_first(first, second, bindings, used, skipped, finalize_method, debug):
@@ -343,42 +330,41 @@ def _iterate_first(first, second, bindings, used, skipped, finalize_method, debu
     """
     debug.line(f"unify({first},{second}) {bindings}")
 
-    if not len(first) or not len(second):  # if no more recursions can be performed
+    if not len(first) or not len(second):
         return finalize_method(first, second, bindings, used, skipped, debug)
-    else:
-        # explore this 'self' atom
-        result = _iterate_second(
-            first, second, bindings, used, skipped, finalize_method, debug + 1
-        )
+    # explore this 'self' atom
+    result = _iterate_second(
+        first, second, bindings, used, skipped, finalize_method, debug + 1
+    )
 
-        # skip this possible 'self' atom
-        newskipped = (skipped[0] + [first[0]], skipped[1])
+    # skip this possible 'self' atom
+    newskipped = (skipped[0] + [first[0]], skipped[1])
+    result += _iterate_first(
+        first[1:], second, bindings, used, newskipped, finalize_method, debug + 1
+    )
+
+    try:
+        newbindings, newused, unused = _unify_terms(
+            first[0], second[0], bindings, used
+        )
+        # Unification found, so progress with this line of unification
+        # put skipped and unused terms back into play for later unification.
+        newfirst = first[1:] + skipped[0] + unused[0]
+        newsecond = second[1:] + skipped[1] + unused[1]
         result += _iterate_first(
-            first[1:], second, bindings, used, newskipped, finalize_method, debug + 1
+            newfirst,
+            newsecond,
+            newbindings,
+            newused,
+            ([], []),
+            finalize_method,
+            debug + 1,
         )
+    except BindingException:
+        # the atoms could not be unified,
+        pass
 
-        try:
-            newbindings, newused, unused = _unify_terms(
-                first[0], second[0], bindings, used
-            )
-            # Unification found, so progress with this line of unification
-            # put skipped and unused terms back into play for later unification.
-            newfirst = first[1:] + skipped[0] + unused[0]
-            newsecond = second[1:] + skipped[1] + unused[1]
-            result += _iterate_first(
-                newfirst,
-                newsecond,
-                newbindings,
-                newused,
-                ([], []),
-                finalize_method,
-                debug + 1,
-            )
-        except BindingException:
-            # the atoms could not be unified,
-            pass
-
-        return result
+    return result
 
 
 def _iterate_second(first, second, bindings, used, skipped, finalize_method, debug):
@@ -387,37 +373,36 @@ def _iterate_second(first, second, bindings, used, skipped, finalize_method, deb
     """
     debug.line(f"unify({first},{second}) {bindings}")
 
-    if not len(first) or not len(second):  # if no more recursions can be performed
+    if not len(first) or not len(second):
         return finalize_method(first, second, bindings, used, skipped, debug)
-    else:
-        # skip this possible pairing and move to the next
-        newskipped = (skipped[0], skipped[1] + [second[0]])
-        result = _iterate_second(
-            first, second[1:], bindings, used, newskipped, finalize_method, debug + 1
+    # skip this possible pairing and move to the next
+    newskipped = (skipped[0], skipped[1] + [second[0]])
+    result = _iterate_second(
+        first, second[1:], bindings, used, newskipped, finalize_method, debug + 1
+    )
+
+    try:
+        newbindings, newused, unused = _unify_terms(
+            first[0], second[0], bindings, used
         )
+        # Unification found, so progress with this line of unification
+        # put skipped and unused terms back into play for later unification.
+        newfirst = first[1:] + skipped[0] + unused[0]
+        newsecond = second[1:] + skipped[1] + unused[1]
+        result += _iterate_second(
+            newfirst,
+            newsecond,
+            newbindings,
+            newused,
+            ([], []),
+            finalize_method,
+            debug + 1,
+        )
+    except BindingException:
+        # the atoms could not be unified,
+        pass
 
-        try:
-            newbindings, newused, unused = _unify_terms(
-                first[0], second[0], bindings, used
-            )
-            # Unification found, so progress with this line of unification
-            # put skipped and unused terms back into play for later unification.
-            newfirst = first[1:] + skipped[0] + unused[0]
-            newsecond = second[1:] + skipped[1] + unused[1]
-            result += _iterate_second(
-                newfirst,
-                newsecond,
-                newbindings,
-                newused,
-                ([], []),
-                finalize_method,
-                debug + 1,
-            )
-        except BindingException:
-            # the atoms could not be unified,
-            pass
-
-        return result
+    return result
 
 
 def _unify_terms(a, b, bindings=None, used=None):
@@ -469,7 +454,7 @@ def _unify_terms(a, b, bindings=None, used=None):
 def _complete_unify_path(first, second, bindings, used, skipped, debug):
     if used[0] or used[1]:  # if bindings were made along the path
         newclause = Clause(skipped[0] + skipped[1] + first + second)
-        debug.line("  -> New Clause: %s" % newclause)
+        debug.line(f"  -> New Clause: {newclause}")
         return [newclause.substitute_bindings(bindings)]
     else:  # no bindings made means no unification occurred.  so no result
         debug.line("  -> End")
@@ -477,15 +462,7 @@ def _complete_unify_path(first, second, bindings, used, skipped, debug):
 
 
 def _subsumes_finalize(first, second, bindings, used, skipped, debug):
-    if not len(skipped[0]) and not len(first):
-        # If there are no skipped terms and no terms left in 'first', then
-        # all of the terms in the original 'self' were unified with terms
-        # in 'other'.  Therefore, there exists a binding (this one) such that
-        # every term in self can be unified with a term in other, which
-        # is the definition of subsumption.
-        return [True]
-    else:
-        return []
+    return [True] if not len(skipped[0]) and not len(first) else []
 
 
 def clausify(expression):
@@ -519,9 +496,9 @@ def _clausify(expression):
     elif isinstance(expression, ApplicationExpression):
         return [Clause([expression])]
     elif isinstance(expression, NegatedExpression):
-        if isinstance(expression.term, ApplicationExpression):
-            return [Clause([expression])]
-        elif isinstance(expression.term, EqualityExpression):
+        if isinstance(
+            expression.term, (ApplicationExpression, EqualityExpression)
+        ):
             return [Clause([expression])]
     raise ProverParseError()
 
@@ -568,13 +545,9 @@ class BindingDict:
             if not existing or binding2 == existing:
                 self.d[binding.variable] = binding2
             else:
-                raise BindingException(
-                    "Variable %s already bound to another " "value" % (variable)
-                )
+                raise BindingException(f"Variable {variable} already bound to another value")
         else:
-            raise BindingException(
-                "Variable %s already bound to another " "value" % (variable)
-            )
+            raise BindingException(f"Variable {variable} already bound to another value")
 
     def __getitem__(self, variable):
         """
@@ -619,7 +592,7 @@ class BindingDict:
         return "{" + data_str + "}"
 
     def __repr__(self):
-        return "%s" % self
+        return f"{self}"
 
 
 def most_general_unification(a, b, bindings=None):
